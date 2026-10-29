@@ -1,0 +1,2 @@
+https://github.com/laravel/vue-starter-kit.git 60a679e4844166b745c1800d86c11fe95a0059e2
+Dependency versions and Vuetify integration follow ../../gamex-docker/gamexsports-portal.

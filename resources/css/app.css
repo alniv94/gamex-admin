@@ -1,0 +1,341 @@
+@import '@mdi/font/css/materialdesignicons.css';
+
+@font-face {
+    font-family: Poppins;
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../assets/fonts/poppins/Poppins-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: Poppins;
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('../assets/fonts/poppins/Poppins-Medium.ttf') format('truetype');
+}
+@font-face {
+    font-family: Poppins;
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('../assets/fonts/poppins/Poppins-SemiBold.ttf') format('truetype');
+}
+:root {
+    font-family: Poppins, sans-serif;
+    color: #000;
+    background: #f5f5f5;
+    font-synthesis: none;
+}
+html {
+    overflow: auto;
+}
+body {
+    margin: 0;
+    padding: 0;
+}
+button,
+input {
+    font: inherit;
+}
+.v-application {
+    font-family: Poppins, sans-serif;
+    font-size: 14px;
+    color: #000;
+}
+h1,
+h2,
+h3 {
+    font-weight: 600;
+}
+input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 30px #fff inset;
+}
+button:disabled {
+    cursor: not-allowed;
+}
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background-color: #eee;
+}
+::-webkit-scrollbar-thumb {
+    background-color: #aaa;
+}
+.shadow {
+    box-shadow: 0 0.5rem 1rem rgb(11 11 28 / 7.5%) !important;
+}
+.v-card {
+    border-radius: 0.4rem !important;
+    box-shadow: none !important;
+}
+.v-btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 1.25px;
+    text-transform: uppercase;
+}
+.v-field,
+.v-field__input,
+.v-label:not(.v-field-label--floating) {
+    font-family: inherit;
+    font-size: 14px;
+}
+.v-input .v-messages {
+    font-size: 10px;
+}
+.v-input__details {
+    padding-inline: 0;
+    margin: 0;
+    min-height: 0;
+}
+.v-input--error .v-input__details {
+    margin-top: 4px;
+}
+.v-field {
+    border-radius: 4px;
+}
+.v-field--variant-outlined .v-field__outline {
+    --v-field-border-opacity: 1;
+}
+.v-field--variant-outlined:not(.v-field--focused):not(.v-field--error) .v-field__outline {
+    color: #ccc;
+}
+.brand-logo {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+.login-main {
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+}
+.login-container {
+    width: 100%;
+    padding: 24px 12px;
+}
+.login-card {
+    width: 100%;
+    max-width: 384px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.login-card .brand-logo {
+    margin-bottom: 16px;
+}
+.login-heading {
+    font-size: 21px;
+    line-height: 1.5;
+    margin: 0 0 8px;
+}
+.login-intro {
+    color: #9e9e9e;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 40px;
+}
+.login-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.login-fields .v-field {
+    min-height: 40px;
+}
+.login-fields .v-field__outline__start {
+    flex-basis: 8px;
+}
+.login-fields .v-field__input {
+    min-height: 40px;
+    padding-block: 8px;
+}
+.login-fields .v-field__append-inner {
+    padding-top: 0;
+    align-items: center;
+}
+.login-fields .v-text-field__prefix {
+    opacity: 1;
+    padding-top: 8px;
+    min-height: 40px;
+}
+.login-fields .v-field--focused .v-text-field__prefix {
+    color: rgb(var(--v-theme-primary));
+}
+.send-otp {
+    border: 0;
+    padding: 0;
+    margin: 0 0 0 4px;
+    color: rgb(var(--v-theme-primary));
+    background: transparent;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 21px;
+}
+.send-otp:disabled {
+    opacity: 0.5;
+}
+.send-otp:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+}
+.login-submit {
+    height: 36px !important;
+}
+.login-submit .v-btn__content {
+    position: relative;
+    width: 100%;
+}
+.login-submit-icon {
+    position: absolute;
+    left: -4px;
+}
+.capture-note {
+    margin: 12px 0 0;
+    color: #616161;
+    font-size: 11px;
+    line-height: 1.6;
+}
+.v-snackbar__wrapper {
+    border-radius: 0.4rem;
+    font-size: 14px;
+    max-width: 340px;
+}
+.legacy-drawer {
+    box-shadow: 0 0.5rem 1rem rgb(11 11 28 / 7.5%);
+    border: 0;
+}
+.drawer-brand {
+    padding: 20px 16px 16px;
+}
+.drawer-brand .brand-logo {
+    margin: 0 auto;
+}
+.legacy-navigation .v-list-item {
+    min-height: 48px;
+    padding-inline: 16px;
+    font-size: 14px;
+}
+.legacy-navigation .v-list-item-title {
+    font-size: 14px;
+    font-weight: 400;
+}
+.navigation-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 16px;
+    object-fit: contain;
+}
+.legacy-app-bar {
+    z-index: 1006 !important;
+    box-shadow: 0 0.5rem 1rem rgb(11 11 28 / 7.5%) !important;
+}
+.legacy-app-bar .v-toolbar__content {
+    padding-inline: 16px;
+}
+.drawer-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    background: #fafafa;
+    border-radius: 50%;
+    color: #000;
+}
+.account-menu-button {
+    letter-spacing: 1.25px;
+    max-width: calc(100vw - 100px);
+}
+.account-menu-button .v-btn__content {
+    overflow: hidden;
+}
+.account-menu-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.account-menu {
+    min-width: 246px !important;
+    border-radius: 0.4rem !important;
+    box-shadow: 0 0.5rem 1rem rgb(36 2 20 / 7.5%) !important;
+}
+.account-menu .v-list-item {
+    min-height: 48px;
+    font-size: 14px;
+}
+.dashboard-main {
+    background: #f5f5f5;
+    min-height: 100dvh;
+}
+.dashboard-content {
+    padding: 16px;
+}
+.page-heading {
+    margin: 0 0 16px;
+    font-size: 21px;
+    line-height: 1.5;
+}
+.account-card {
+    padding: 24px;
+}
+.section-heading {
+    margin: 0 0 8px;
+    font-size: 18px;
+    line-height: 1.5;
+}
+.account-welcome {
+    color: #757575;
+    margin: 0 0 24px;
+}
+.account-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin: 0;
+}
+.account-details dt {
+    color: #757575;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+.account-details dd {
+    margin: 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+.logout-overlay .v-overlay__content {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: white;
+    padding: 24px;
+}
+@media (min-width: 960px) {
+    .login-card {
+        padding: 32px;
+    }
+    .legacy-app-bar .v-toolbar__content {
+        padding-inline: 24px;
+    }
+    .dashboard-content {
+        padding: 24px;
+    }
+}
+@media (max-width: 599px) {
+    .account-details {
+        grid-template-columns: 1fr;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+    }
+}

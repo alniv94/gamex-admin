@@ -1,0 +1,46 @@
+name: gamexsports-admin
+services:
+    app:
+        build: .
+        image: gamexsports-admin-dev
+        init: true
+        ports: ['127.0.0.1:8085:80']
+        extra_hosts: ['host.docker.internal:host-gateway']
+        environment:
+            DB_HOST: host.docker.internal
+            LEGACY_DB_HOST: host.docker.internal
+        volumes:
+            - .:/var/www/html
+            - admin_vendor:/var/www/html/vendor
+            - admin_node_modules:/var/www/html/node_modules
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'php',
+                    '-r',
+                    "exit(@file_get_contents('http://localhost/up') === false ? 1 : 0);",
+                ]
+            interval: 15s
+            timeout: 5s
+            retries: 10
+    vite:
+        image: gamexsports-admin-dev
+        init: true
+        command: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
+        ports: ['127.0.0.1:5175:5175']
+        extra_hosts: ['host.docker.internal:host-gateway']
+        environment:
+            DB_HOST: host.docker.internal
+            LEGACY_DB_HOST: host.docker.internal
+            CHOKIDAR_USEPOLLING: 'true'
+        depends_on:
+            app:
+                condition: service_healthy
+        volumes:
+            - .:/var/www/html
+            - admin_vendor:/var/www/html/vendor
+            - admin_node_modules:/var/www/html/node_modules
+volumes:
+    admin_vendor:
+    admin_node_modules:
