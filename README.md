@@ -1,6 +1,6 @@
 # GameXSports Admin Portal
 
-Phase 1: administrator mobile/SMS OTP login, authenticated account overview, logout, and legacy administrator migration.
+Administrator mobile/SMS OTP login, account overview, ending game management through winner declaration, and legacy administrator/game migration.
 
 Based on [laravel/vue-starter-kit](https://github.com/laravel/vue-starter-kit), pinned in [docs/starter-revision.txt](docs/starter-revision.txt). Uses Laravel 13, PHP 8.5, Vue 3, TypeScript, Inertia 3, Vuetify **4.3.0**, Vite Plus, and MySQL, matching the adjacent player portal. Admin pages use client rendering.
 
@@ -32,7 +32,7 @@ The local import completed on **2026-10-29**:
 
 IDs, password hashes, active status, profile fields, role IDs, and permission records were preserved. Source login keys and OTPs are never imported. Existing players remain in `players`; their count remained **72,992**. The import was verified and rerun successfully without duplicating accounts. See [migration details](docs/migration.md).
 
-Only active imported administrators with a valid registered mobile can sign in. Enter a Philippine mobile number in local, 10-digit, or +63 format. There is no public registration or password login. Administration modules beyond account access are not implemented yet.
+Only active imported administrators with a valid registered mobile can sign in. Enter a Philippine mobile number in local, 10-digit, or +63 format. There is no public registration or password login. The Ending Games module follows the imported administrator permissions. See [ending workflow and historical migration](docs/ending-games.md).
 
 ## Run locally
 
@@ -67,10 +67,14 @@ php artisan migrate
 php artisan legacy:import-admins --dry-run
 php artisan legacy:import-admins --execute
 php artisan legacy:verify-admins
+php artisan legacy:ending --dry-run
+php artisan legacy:ending --execute
 npm run build
 ```
 
 The adjacent player portal's account-separation migration must already be applied when sharing its database. Admin migrations use their own `admin_migrations` table and preserve the shared `users` table. Destructive Artisan database commands are disabled outside isolated PHPUnit tests. Never wipe or recreate the shared portal database.
+
+The ending import also requires the player portal's existing legacy player mappings. Its verified local copy includes 12,870 games, 1,022,794 bets, 22,457 winner records, and their related cards, prizes, commissions and logs. It preserves quarantined player links and never replays payouts. Run `php85 artisan schedule:work` alongside the development server for automatic betting cutoffs and game starts. See [ending workflow and migration details](docs/ending-games.md).
 
 ## Docker
 

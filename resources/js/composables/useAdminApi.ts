@@ -12,11 +12,15 @@ export class ApiError extends Error {
 
 export function useAdminApi() {
     const page = usePage<AdminPageProps>();
-    return async <T>(url: string, body: Record<string, unknown> = {}): Promise<T> => {
+    return async <T>(
+        url: string,
+        body: Record<string, unknown> = {},
+        method: 'GET' | 'POST' = 'POST',
+    ): Promise<T> => {
         let response: Response;
         try {
-            response = await fetch(url, {
-                method: 'POST',
+            const options: RequestInit = {
+                method,
                 credentials: 'same-origin',
                 cache: 'no-store',
                 headers: {
@@ -24,8 +28,9 @@ export function useAdminApi() {
                     Accept: 'application/json',
                     'X-CSRF-TOKEN': page.props.csrf_token,
                 },
-                body: JSON.stringify(body),
-            });
+            };
+            if (method === 'POST') options.body = JSON.stringify(body);
+            response = await fetch(url, options);
         } catch {
             throw new ApiError('Unable to connect. Check your connection and try again.');
         }

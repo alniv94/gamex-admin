@@ -15,7 +15,7 @@ The sign-in page follows `admin-portal/src/views/Home.vue`:
 
 The authenticated layout follows `admin-portal/src/components/Navbar.vue`, `NavbarLinks.vue`, and `src/assets/main.css`: white 64px header, navigation toggle, logo drawer, account dropdown, and Logout with progress feedback. The drawer opens by default on desktop and collapses on smaller displays. The card stays readable at tablet widths.
 
-Only the dashboard/account view is available at this stage. Financial charts and other management modules retain their implementation scope from the phased rebuild.
+The Ending Games module ports the original Scheduled Games list, Create Game preset editor, game details, card and bet inspection, quarterly results, and winner verification/approval. It retains the original cyan controls, white cards, compact tables, and dialogs. Filters and history lists paginate on the server. All dates use Philippine time. The navigation and action buttons follow the original permission IDs, with matching server checks. New activity records include before/after values and correction reasons; historical logs remain separately identifiable.
 
 ## Assets
 

@@ -6,9 +6,10 @@
         "build": "vp build",
         "build:ssr": "vp build && vp build --ssr",
         "dev": "vp dev",
-        "check": "vp check",
-        "check:fix": "vp check --fix",
-        "types:check": "vue-tsc --noEmit"
+        "routes:generate": "php artisan wayfinder:generate --skip-database --no-interaction",
+        "check": "npm run routes:generate && vp check",
+        "check:fix": "npm run routes:generate && vp check --fix",
+        "types:check": "npm run routes:generate && vue-tsc --noEmit"
     },
     "dependencies": {
         "@inertiajs/vite": "^3.0.0",

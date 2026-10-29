@@ -60,4 +60,4 @@ Player records and player sessions cannot authenticate to these routes. The `gam
 | 429    | Request/verification limit or send lock                                       |
 | 503    | SMS is unavailable or the provider rejected the request                       |
 
-Public registration, password login, password reset, and management APIs are not exposed in this phase.
+Public registration, password login, and password reset are not exposed. Ending game routes and their permissions are documented in [ending-games.md](ending-games.md).

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useDisplay } from 'vuetify';
@@ -49,7 +50,7 @@ async function logout() {
                 <v-list-item
                     href="/dashboard"
                     color="primary"
-                    active
+                    :active="page.url.startsWith('/dashboard')"
                     variant="tonal"
                     @click.prevent="dashboard"
                 >
@@ -57,6 +58,20 @@ async function logout() {
                         ><img src="/images/navigation/dashboard.png" alt="" class="navigation-icon"
                     /></template>
                     <v-list-item-title>Dashboard</v-list-item-title>
+                </v-list-item>
+                <v-list-item
+                    v-if="user?.permissions.some((p) => p.id === 17)"
+                    :href="EndingGameController.index.url()"
+                    color="primary"
+                    :active="page.url.startsWith('/ending')"
+                    variant="tonal"
+                    prepend-icon="mdi-basketball"
+                    @click.prevent="
+                        router.visit(EndingGameController.index());
+                        drawer = width >= 1264;
+                    "
+                >
+                    <v-list-item-title>Ending Games</v-list-item-title>
                 </v-list-item>
             </v-list>
         </v-navigation-drawer>
