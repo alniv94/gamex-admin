@@ -214,10 +214,10 @@ class EndingCatalogTest extends TestCase
         foreach (range(1, 6) as $offset) {
             EndingGame::factory()->create(['team_a' => 1, 'team_b' => 2, 'schedule' => now()->addDays($offset), 'created_at' => now()->addSeconds($offset)]);
         }
-        $this->get('/ending/games?per_page=5')->assertInertia(fn (AssertableInertia $page) => $page
+        $this->get('/ending/games?per_page=5&date_from='.now()->toDateString().'&date_to='.now()->addDays(6)->toDateString())->assertInertia(fn (AssertableInertia $page) => $page
             ->has('games.data', 5)->where('games.total', 6)->where('games.data.0.id', 6)
             ->where('games.data.0.team_a_logo', 'https://example.test/blue.png')->missing('games.data.0.legacy_checksum'));
-        $this->get('/ending/games?per_page=5&sort=created_at&direction=asc')->assertInertia(fn (AssertableInertia $page) => $page->where('games.data.0.id', 1));
+        $this->get('/ending/games?per_page=5&sort=created_at&direction=asc&date_from='.now()->toDateString().'&date_to='.now()->addDays(6)->toDateString())->assertInertia(fn (AssertableInertia $page) => $page->where('games.data.0.id', 1));
         $this->get('/ending/games?sort=untrusted_column')->assertSessionHasErrors('sort');
     }
 }

@@ -35,10 +35,15 @@ class EndingGameController extends Controller
     public function index(Request $request): Response
     {
         $this->permit($request, 17);
+        $today = CarbonImmutable::now('Asia/Manila')->toDateString();
+        $request->merge([
+            'date_from' => $request->input('date_from', $today),
+            'date_to' => $request->filled('date_to') ? $request->input('date_to') : $request->input('date_from', $today),
+        ]);
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'], 'league_id' => ['nullable', 'integer'],
             'status' => ['nullable', Rule::in(['scheduled', 'ongoing', 'finished'])],
-            'date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'date_from' => ['required', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'per_page' => ['sometimes', 'integer', Rule::in([5, 10, 25, 50, 100])],
             'sort' => ['nullable', Rule::in(['schedule', 'enabled_betting_at', 'created_at'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
@@ -51,7 +56,7 @@ class EndingGameController extends Controller
                 ->orWhereHas('teamB', fn (Builder $teams) => $teams->where('team_name', 'like', $search))
                 ->orWhere('ending_games.id', $request->input('search')));
         }
-        if ($request->filled('league_id')) {
+        if ($request->integer('league_id')) {
             $games->whereHas('teamA', fn (Builder $teams) => $teams->where('league_id', $request->integer('league_id')));
         }
         match ($request->input('status')) {

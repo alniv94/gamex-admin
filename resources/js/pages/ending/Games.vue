@@ -1,7 +1,8 @@
 ﻿<script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { router, usePage, Link } from '@inertiajs/vue3';
-import { onBeforeUnmount, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { useDate } from 'vuetify';
 import EndingShell from '../../components/ending/EndingShell.vue';
 import EndingToolbar from '../../components/ending/EndingToolbar.vue';
 import EntityLogo from '../../components/ending/EntityLogo.vue';
@@ -23,32 +24,86 @@ const page = usePage<AdminPageProps>();
 const canCreate = page.props.auth.user?.permissions.some((p) => p.id === 32);
 const form = reactive({
     search: props.filters.search || '',
-    league_id: props.filters.league_id || null,
-    status: props.filters.status || null,
+    league_id: Number(props.filters.league_id) || null,
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
     sort: props.filters.sort || 'schedule',
     direction: props.filters.direction || 'desc',
 });
 const create = ref(false);
-const filtersOpen = ref(!!(form.league_id || form.status || form.date_from || form.date_to));
+const filtersOpen = ref(false);
+const filterForm = ref<{ validate: () => Promise<{ valid: boolean }> }>();
+const draft = reactive({
+    league_id: form.league_id,
+    date_from: form.date_from,
+    date_to: form.date_to,
+});
+const dateAdapter = useDate();
+const startDate = computed<Date | null>({
+    get: () =>
+        draft.date_from ? dateAdapter.toJsDate(dateAdapter.parseISO(draft.date_from)) : null,
+    set: (value) => {
+        draft.date_from = value ? dateAdapter.toISO(value) : '';
+    },
+});
+const endDate = computed<Date | null>({
+    get: () => (draft.date_to ? dateAdapter.toJsDate(dateAdapter.parseISO(draft.date_to)) : null),
+    set: (value) => {
+        draft.date_to = value ? dateAdapter.toISO(value) : '';
+    },
+});
+watch(
+    () => props.filters,
+    (filters) => {
+        Object.assign(form, {
+            search: filters.search || '',
+            league_id: Number(filters.league_id) || null,
+            date_from: filters.date_from || '',
+            date_to: filters.date_to || '',
+            sort: filters.sort || 'schedule',
+            direction: filters.direction || 'desc',
+        });
+    },
+);
 let timer: ReturnType<typeof setTimeout> | undefined;
-function filter() {
+function visit(filters: Record<string, string | number | null>, closeFilters = false) {
+    clearTimeout(timer);
     router.get(
         EndingGameController.index.url(),
-        { ...form, per_page: props.games.per_page },
-        { preserveState: true, preserveScroll: true, replace: true },
+        { ...filters, per_page: props.games.per_page },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onSuccess: () => {
+                if (closeFilters) filtersOpen.value = false;
+            },
+        },
     );
+}
+function filter() {
+    visit(form);
+}
+function openFilters() {
+    Object.assign(draft, {
+        league_id: form.league_id,
+        date_from: form.date_from,
+        date_to: form.date_to,
+    });
+    filtersOpen.value = true;
+}
+async function applyFilters() {
+    if (!(await filterForm.value?.validate())?.valid) return;
+    visit({ ...form, ...draft, date_to: draft.date_to || draft.date_from }, true);
+}
+function refresh() {
+    visit({ search: form.search, sort: form.sort, direction: form.direction });
 }
 function search() {
     clearTimeout(timer);
     timer = setTimeout(filter, 300);
 }
 onBeforeUnmount(() => clearTimeout(timer));
-function reset() {
-    Object.assign(form, { search: '', league_id: null, status: null, date_from: '', date_to: '' });
-    filter();
-}
 function sort(column: string) {
     form.direction = form.sort === column && form.direction === 'desc' ? 'asc' : 'desc';
     form.sort = column;
@@ -91,7 +146,7 @@ function exportRows() {
                 :disabled="!migrationReady"
                 exportable
                 @create="create = true"
-                @refresh="router.reload()"
+                @refresh="refresh"
                 @search="search"
                 @export="exportRows"
             >
@@ -99,11 +154,12 @@ function exportRows() {
                     icon="mdi-filter-variant"
                     variant="text"
                     size="small"
-                    aria-label="Toggle game filters"
+                    aria-label="Filter games"
                     title="Filters"
+                    aria-haspopup="dialog"
                     :aria-expanded="filtersOpen"
                     :color="filtersOpen ? 'primary' : undefined"
-                    @click="filtersOpen = !filtersOpen"
+                    @click="openFilters"
                 />
                 <v-btn
                     size="small"
@@ -115,65 +171,6 @@ function exportRows() {
                     @click.prevent="router.visit(EndingGameController.history())"
                 />
             </EndingToolbar>
-            <v-expand-transition>
-                <v-form v-if="filtersOpen" class="pa-4 pt-0" @submit.prevent="filter">
-                    <v-row dense>
-                        <v-col cols="12" sm="6" md="3"
-                            ><v-select
-                                v-model="form.league_id"
-                                :items="leagues"
-                                item-title="league"
-                                item-value="id"
-                                label="League"
-                                variant="outlined"
-                                density="compact"
-                                clearable
-                                hide-details
-                        /></v-col>
-                        <v-col cols="12" sm="6" md="3"
-                            ><v-select
-                                v-model="form.status"
-                                :items="[
-                                    { title: 'Scheduled', value: 'scheduled' },
-                                    { title: 'Ongoing', value: 'ongoing' },
-                                    { title: 'Finished', value: 'finished' },
-                                ]"
-                                label="Status"
-                                variant="outlined"
-                                density="compact"
-                                clearable
-                                hide-details
-                        /></v-col>
-                        <v-col cols="12" sm="6" md="3"
-                            ><v-text-field
-                                v-model="form.date_from"
-                                label="From (Philippines)"
-                                type="date"
-                                hide-details
-                        /></v-col>
-                        <v-col cols="12" sm="6" md="3"
-                            ><v-text-field
-                                v-model="form.date_to"
-                                label="To (Philippines)"
-                                type="date"
-                                hide-details
-                        /></v-col>
-                        <v-col cols="12" class="d-flex ga-2"
-                            ><v-btn type="submit" color="primary" variant="outlined" size="small"
-                                >Apply Filters</v-btn
-                            ><v-btn variant="text" size="small" @click="reset">Reset</v-btn></v-col
-                        >
-                    </v-row>
-                    <v-alert
-                        v-if="Object.keys(page.props.errors).length"
-                        type="error"
-                        variant="tonal"
-                        role="alert"
-                        class="mt-3"
-                        >{{ Object.values(page.props.errors).join(' ') }}</v-alert
-                    >
-                </v-form>
-            </v-expand-transition>
             <v-divider />
             <v-table class="ending-table ending-games-table" density="compact">
                 <thead>
@@ -292,6 +289,80 @@ function exportRows() {
             </v-table>
             <EndingPager :page="games" selectable />
         </v-card>
+        <v-dialog v-model="filtersOpen" max-width="700" class="ending-dialog">
+            <v-card>
+                <v-card-title>Filter</v-card-title>
+                <v-divider />
+                <v-card-text>
+                    <v-form v-if="filtersOpen" ref="filterForm" @submit.prevent="applyFilters">
+                        <v-autocomplete
+                            v-model="draft.league_id"
+                            :items="leagues"
+                            item-title="league"
+                            item-value="id"
+                            label="League"
+                            variant="outlined"
+                            density="compact"
+                            clearable
+                            hide-details="auto"
+                        />
+                        <v-row class="mt-2">
+                            <v-col cols="12" sm="6">
+                                <v-date-input
+                                    v-model="startDate"
+                                    label="Schedule Date Start"
+                                    input-format="yyyy-MM-dd"
+                                    variant="outlined"
+                                    density="compact"
+                                    clearable
+                                    hide-details="auto"
+                                    :rules="[
+                                        (value) => !!value || 'Schedule Date Start is required.',
+                                    ]"
+                                />
+                            </v-col>
+                            <v-col cols="12" sm="6">
+                                <v-date-input
+                                    v-model="endDate"
+                                    label="Schedule Date End (Optional)"
+                                    input-format="yyyy-MM-dd"
+                                    variant="outlined"
+                                    density="compact"
+                                    clearable
+                                    hide-details="auto"
+                                    :min="startDate || undefined"
+                                    :rules="[
+                                        (value) =>
+                                            !value ||
+                                            !draft.date_from ||
+                                            dateAdapter.toISO(value) >= draft.date_from ||
+                                            'Schedule Date End must be on or after Schedule Date Start.',
+                                    ]"
+                                />
+                            </v-col>
+                        </v-row>
+                        <v-alert
+                            v-if="Object.keys(page.props.errors).length"
+                            type="error"
+                            variant="tonal"
+                            role="alert"
+                            class="mt-3"
+                            >{{ Object.values(page.props.errors).join(' ') }}</v-alert
+                        >
+                        <v-row class="mt-2">
+                            <v-col cols="12" sm="6">
+                                <v-btn type="submit" color="primary" block>Filter</v-btn>
+                            </v-col>
+                            <v-col cols="12" sm="6">
+                                <v-btn variant="outlined" block @click="filtersOpen = false"
+                                    >Cancel</v-btn
+                                >
+                            </v-col>
+                        </v-row>
+                    </v-form>
+                </v-card-text>
+            </v-card>
+        </v-dialog>
         <GameForm v-model="create" :leagues="leagues" :teams="teams" :presets="presets" />
     </EndingShell>
 </template>

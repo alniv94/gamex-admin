@@ -40,6 +40,54 @@ test('ending creation, result, verification, declaration, and audit at each view
     await expect(page).toHaveURL(/\/dashboard$/);
     await page.goto('/ending/games');
     await expect(page.getByRole('heading', { name: 'Scheduled Games', exact: true })).toBeVisible();
+    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Manila' }).format(new Date());
+    const filters = page.getByRole('dialog');
+    await page.getByRole('button', { name: 'Filter games', exact: true }).click();
+    await expect(filters.getByLabel('Schedule Date Start', { exact: true })).toHaveValue(today);
+    await expect(filters.getByLabel('Schedule Date End (Optional)', { exact: true })).toHaveValue(
+        today,
+    );
+    await filters.getByLabel('Schedule Date Start', { exact: true }).click();
+    const calendar = page.locator('.v-date-picker');
+    await expect(calendar).toBeVisible();
+    const selectedDate = `${today.slice(0, 8)}${today.endsWith('01') ? '02' : '01'}`;
+    await calendar.locator(`[data-v-date="${selectedDate}"]`).click();
+    await expect(calendar).not.toBeVisible();
+    await expect(filters.getByLabel('Schedule Date Start', { exact: true })).toHaveValue(
+        selectedDate,
+    );
+    await filters.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByLabel('Search', { exact: true }).fill('Blue');
+    await expect(page).toHaveURL(/search=Blue/);
+    await expect(page.getByText('No games found.', { exact: true })).toHaveCount(0);
+    await page.getByLabel('Search', { exact: true }).fill('');
+    await expect(page).not.toHaveURL(/search=Blue/);
+    await page.getByRole('button', { name: 'Filter games', exact: true }).click();
+    await expect(filters.getByLabel('Schedule Date Start', { exact: true })).toHaveValue(today);
+    await filters.getByLabel('Schedule Date Start', { exact: true }).fill('');
+    await filters.getByRole('button', { name: 'Filter', exact: true }).click();
+    await expect(
+        filters.getByText('Schedule Date Start is required.', { exact: true }),
+    ).toBeVisible();
+    await filters.getByLabel('Schedule Date Start', { exact: true }).fill('2000-01-01');
+    await filters.getByLabel('Schedule Date End (Optional)', { exact: true }).fill('');
+    await filters.getByLabel('League', { exact: true }).fill('Test');
+    await page.getByRole('option', { name: 'Test League', exact: true }).click();
+    await filters.getByRole('button', { name: 'Filter', exact: true }).click();
+    await expect(filters).not.toBeVisible();
+    await expect(page).toHaveURL(/date_from=2000-01-01/);
+    await expect(page).toHaveURL(/date_to=2000-01-01/);
+    await expect(page.getByText('No games found.', { exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByRole('button', { name: 'Filter games', exact: true }).click();
+    await expect(filters.getByLabel('League', { exact: true })).toHaveValue('Test League');
+    await expect(filters.getByLabel('Schedule Date End (Optional)', { exact: true })).toHaveValue(
+        '2000-01-01',
+    );
+    await filters.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await expect(page).not.toHaveURL(/2000-01-01/);
+    await expect(page.getByText('No games found.', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'Create Game', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: 'Create Game', exact: true }).click();
