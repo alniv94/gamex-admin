@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * @property int $game_id
+ * @property int|null $game_id
  * @property int|null $user_id
  * @property string $action
  * @property string $subject_type

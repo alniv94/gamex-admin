@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $amount
  * @property int $bet_type_id
  * @property int $cards_count
+ * @property int $disabled_cards_count
+ * @property int $generated_cards_count
+ * @property int $exceeded_cards_count
  */
 class EndingBetAmount extends EndingRecord
 {

@@ -7,6 +7,7 @@ import AdminLayout from '../../layouts/AdminLayout.vue';
 import EndingPager from '../../components/ending/EndingPager.vue';
 import EndingLogs from '../../components/ending/EndingLogs.vue';
 import GameForm from '../../components/ending/GameForm.vue';
+import EntityLogo from '../../components/ending/EntityLogo.vue';
 import type { AdminPageProps } from '../../types';
 import type {
     EndingGame,
@@ -37,6 +38,8 @@ const props = defineProps<{
     teams: Team[];
     presets: Preset[];
     cardBets?: Bet[];
+    cardThreshold: number;
+    cardAmountFilter: number | null;
 }>();
 const page = usePage<AdminPageProps>();
 const can = (id: number) => page.props.auth.user?.permissions.some((p) => p.id === id) || false;
@@ -53,6 +56,9 @@ const resultForm = useForm({
     reason: '',
 });
 const cardDialog = ref(false);
+const subtractDialog = ref(false);
+const subtractAmount = ref<BetAmount | null>(null);
+const subtractForm = useForm({ quantity: 1 });
 const cardForm = useForm({
     bet_amount_id: null as number | null,
     quantity: 1,
@@ -70,7 +76,19 @@ const actionForm = useForm({
     bet_id: null as number | null,
     quarter_id: null as number | null,
 });
-const busy = computed(() => resultForm.processing || cardForm.processing || actionForm.processing);
+const busy = computed(
+    () =>
+        resultForm.processing ||
+        cardForm.processing ||
+        actionForm.processing ||
+        subtractForm.processing,
+);
+const totalCards = computed(() =>
+    props.amounts.reduce((total, amount) => total + Number(amount.cards), 0),
+);
+const generatedCards = computed(() =>
+    props.amounts.reduce((total, amount) => total + Number(amount.generated_cards), 0),
+);
 const error = computed(() =>
     Object.values({ ...resultForm.errors, ...cardForm.errors, ...actionForm.errors })
         .flat()
@@ -138,6 +156,45 @@ function saveCards() {
             dismissedMessage.value = '';
         },
     });
+}
+function openCards(amount?: BetAmount) {
+    clearErrors();
+    cardForm.resetAndClearErrors();
+    cardForm.bet_amount_id = amount?.id || null;
+    cardDialog.value = true;
+}
+function viewCards(amount?: BetAmount) {
+    tab.value = 'cards';
+    router.get(
+        EndingGameController.show.url(props.game.id),
+        amount ? { bet_amount_id: amount.id } : {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            only: ['cards', 'cardAmountFilter'],
+        },
+    );
+}
+function openSubtract(amount: BetAmount) {
+    subtractAmount.value = amount;
+    subtractForm.resetAndClearErrors();
+    subtractDialog.value = true;
+}
+function saveSubtraction() {
+    if (!subtractAmount.value || busy.value) return;
+    subtractForm.submit(
+        EndingGameController.subtractCards({
+            game: props.game.id,
+            betAmount: subtractAmount.value.id,
+        }),
+        {
+            preserveScroll: true,
+            headers: { 'X-CSRF-TOKEN': page.props.csrf_token },
+            onSuccess: () => {
+                subtractDialog.value = false;
+            },
+        },
+    );
 }
 function confirmWinner(winner: Winner, action: 'verify' | 'unverify' | 'approve') {
     clearErrors();
@@ -222,7 +279,7 @@ function viewCard(card: GameCard) {
 <template>
     <Head :title="`Ending Game #${game.id}`" />
     <AdminLayout
-        ><div class="pa-4 pa-md-6">
+        ><div class="ending-page">
             <v-btn
                 variant="text"
                 prepend-icon="mdi-arrow-left"
@@ -247,78 +304,273 @@ function viewCard(card: GameCard) {
                 @click:close="dismissedMessage = message"
                 >{{ message }}</v-alert
             >
-            <v-card class="mb-5">
+            <v-card class="mb-5 ending-game-overview">
                 <v-card-text>
-                    <div class="d-flex align-center flex-wrap ga-2 mb-3">
-                        <div class="text-subtitle-1 flex-grow-1 text-center">
-                            {{ game.league }} · Game #{{ game.id }}
+                    <div class="ending-overview-header">
+                        <div class="ending-overview-identity">
+                            <span class="ending-overview-league">{{
+                                game.league || 'Ending Game'
+                            }}</span>
+                            <span class="ending-overview-id">Game #{{ game.id }}</span>
                         </div>
                         <v-btn
                             v-if="can(10) && scheduled"
-                            variant="text"
-                            color="primary"
-                            prepend-icon="mdi-pencil"
+                            variant="outlined"
+                            color="secondary"
+                            size="small"
+                            prepend-icon="mdi-pencil-outline"
                             @click="edit = true"
-                            >Edit</v-btn
+                            >Edit Game</v-btn
                         >
                     </div>
-                    <h1 class="text-h5 text-center font-weight-medium mb-5 ending-matchup">
-                        {{ game.team_a_name || `Team #${game.team_a}` }}
-                        <span class="text-medium-emphasis text-subtitle-1 mx-2">vs</span>
-                        {{ game.team_b_name || `Team #${game.team_b}` }}
-                    </h1>
-                    <v-row
-                        ><v-col cols="12" md="4"
-                            ><div class="text-caption text-primary mb-2">GAME DETAILS</div>
-                            <p class="mb-2">{{ displayDate(game.schedule) }} (Philippines)</p>
-                            <v-chip size="small" class="mr-2">{{ game.status }}</v-chip
-                            ><v-chip
-                                size="small"
-                                :color="game.betting === 'Enabled' ? 'success' : 'default'"
-                                >Betting {{ game.betting }}</v-chip
-                            ></v-col
+                    <h1 class="ending-matchup-logos">
+                        <span class="ending-matchup-team"
+                            ><EntityLogo
+                                :src="game.team_a_logo"
+                                :name="game.team_a_name"
+                                :size="84"
+                            /><span class="d-block">{{
+                                game.team_a_name || `Team #${game.team_a}`
+                            }}</span></span
                         >
-                        <v-col cols="12" md="4"
-                            ><div class="text-caption text-primary mb-2">SETTINGS</div>
+                        <span class="ending-versus text-subtitle-2">vs</span>
+                        <span class="ending-matchup-team"
+                            ><EntityLogo
+                                :src="game.team_b_logo"
+                                :name="game.team_b_name"
+                                :size="84"
+                            /><span class="d-block">{{
+                                game.team_b_name || `Team #${game.team_b}`
+                            }}</span></span
+                        >
+                    </h1>
+                    <dl class="ending-game-facts" aria-label="Game details">
+                        <div>
+                            <dt><v-icon icon="mdi-calendar-clock-outline" size="16" />Schedule</dt>
+                            <dd>{{ displayDate(game.schedule) }}</dd>
+                        </div>
+                        <div>
+                            <dt><v-icon icon="mdi-basketball" size="16" />Game status</dt>
+                            <dd>{{ game.status }}</dd>
+                        </div>
+                        <div>
+                            <dt><v-icon icon="mdi-clock-outline" size="16" />Created at</dt>
+                            <dd>{{ displayDate(game.created_at) }}</dd>
+                        </div>
+                    </dl>
+                    <div class="ending-game-actions">
+                        <section
+                            class="ending-action-panel ending-action-panel--betting"
+                            aria-labelledby="ending-betting-heading"
+                        >
+                            <div class="ending-action-heading">
+                                <span class="ending-action-icon"
+                                    ><v-icon icon="mdi-lock-outline" size="21"
+                                /></span>
+                                <h2 id="ending-betting-heading">Betting Control</h2>
+                            </div>
+                            <span
+                                class="ending-action-status"
+                                :class="
+                                    game.betting === 'Enabled'
+                                        ? 'ending-action-status--open'
+                                        : 'ending-action-status--closed'
+                                "
+                            >
+                                {{
+                                    game.betting === 'Enabled' ? 'Accepting bets' : 'Betting closed'
+                                }}
+                            </span>
+                            <p class="ending-action-description">
+                                Control whether players can place bets on this game.
+                            </p>
                             <v-btn
                                 v-if="can(10)"
-                                variant="outlined"
-                                color="primary"
+                                variant="flat"
+                                :color="game.betting === 'Enabled' ? '#a85b00' : '#23834b'"
+                                :prepend-icon="
+                                    game.betting === 'Enabled'
+                                        ? 'mdi-lock-outline'
+                                        : 'mdi-lock-open-outline'
+                                "
+                                block
+                                class="ending-action-button"
                                 :disabled="busy || (!scheduled && game.betting !== 'Enabled')"
                                 @click="confirmBetting"
                                 >{{
                                     game.betting === 'Enabled' ? 'Close Betting' : 'Open Betting'
                                 }}</v-btn
                             >
-                            <p v-else class="text-medium-emphasis">View access</p></v-col
+                            <p v-else class="ending-action-access">
+                                You have view access to betting settings.
+                            </p>
+                        </section>
+                        <section
+                            class="ending-action-panel ending-action-panel--results"
+                            aria-labelledby="ending-results-heading"
                         >
-                        <v-col cols="12" md="4"
-                            ><div class="text-caption text-primary mb-2">GAME ACTIONS</div>
-                            <div class="d-flex flex-wrap ga-2">
-                                <v-btn
-                                    v-if="can(11)"
-                                    variant="outlined"
-                                    color="primary"
-                                    :disabled="busy || results.length >= 4"
-                                    @click="resultFormOpen()"
-                                    >Create Result</v-btn
-                                ><v-btn
-                                    v-if="can(12)"
-                                    variant="outlined"
-                                    color="primary"
-                                    :disabled="busy || !scheduled"
-                                    @click="
-                                        clearErrors();
-                                        cardDialog = true;
-                                    "
-                                    >Create Cards</v-btn
+                            <div class="ending-action-heading">
+                                <span class="ending-action-icon"
+                                    ><v-icon icon="mdi-scoreboard-outline" size="21"
+                                /></span>
+                                <h2 id="ending-results-heading">Game Results</h2>
+                            </div>
+                            <span class="ending-action-status ending-action-status--results"
+                                >{{ results.length }} of 4 quarters recorded</span
+                            >
+                            <p class="ending-action-description">
+                                Enter official scores and record the winning combinations.
+                            </p>
+                            <v-btn
+                                v-if="can(11)"
+                                variant="flat"
+                                color="#007fae"
+                                prepend-icon="mdi-plus"
+                                block
+                                class="ending-action-button"
+                                :disabled="busy || results.length >= 4"
+                                @click="resultFormOpen()"
+                                >Create Result</v-btn
+                            >
+                            <v-btn
+                                v-else
+                                variant="outlined"
+                                color="primary"
+                                prepend-icon="mdi-scoreboard-outline"
+                                block
+                                class="ending-action-button"
+                                @click="tab = 'results'"
+                                >View Results</v-btn
+                            >
+                        </section>
+                        <section
+                            class="ending-action-panel ending-action-panel--files"
+                            aria-labelledby="ending-files-heading"
+                        >
+                            <div class="ending-action-heading">
+                                <span class="ending-action-icon"
+                                    ><v-icon icon="mdi-file-document-outline" size="21"
+                                /></span>
+                                <h2 id="ending-files-heading">Card Files</h2>
+                            </div>
+                            <span class="ending-action-status ending-action-status--closed"
+                                >PDF generation unavailable</span
+                            >
+                            <div class="ending-file-progress">
+                                <span
+                                    >{{ generatedCards }} of {{ totalCards }} cards generated</span
                                 >
-                            </div></v-col
-                        >
-                    </v-row>
+                                <v-progress-linear
+                                    :model-value="
+                                        totalCards ? (generatedCards / totalCards) * 100 : 0
+                                    "
+                                    color="#a8b4c0"
+                                    bg-color="#e8edf1"
+                                    height="5"
+                                    rounded
+                                    aria-label="Generated card files"
+                                />
+                            </div>
+                            <p class="ending-action-description">
+                                PDF generation and email delivery are unavailable.
+                            </p>
+                        </section>
+                    </div>
                 </v-card-text>
             </v-card>
-            <v-card>
+            <v-card class="mb-5">
+                <div class="ending-toolbar">
+                    <h2 class="text-caption text-primary">BET AMOUNTS</h2>
+                    <div class="d-flex ga-2">
+                        <v-btn
+                            variant="outlined"
+                            color="secondary"
+                            prepend-icon="mdi-cards-outline"
+                            size="small"
+                            :href="EndingGameController.cardIndex.url(game.id)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View all cards (opens in a new tab)"
+                            >View All Cards</v-btn
+                        ><v-btn
+                            v-if="can(12)"
+                            variant="flat"
+                            color="primary"
+                            prepend-icon="mdi-plus"
+                            size="small"
+                            :disabled="busy || !scheduled"
+                            @click="openCards()"
+                            >Create Bet</v-btn
+                        >
+                    </div>
+                </div>
+                <v-table class="ending-table" density="compact"
+                    ><thead>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Bet type</th>
+                            <th>Total cards</th>
+                            <th>Subtracted cards</th>
+                            <th>Cards exceeding {{ cardThreshold }} bets</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="amount in amounts" :key="amount.id">
+                            <td class="text-no-wrap">PHP {{ money(amount.amount) }}</td>
+                            <td>{{ betType(amount.bet_type_id) }}</td>
+                            <td>{{ amount.cards }}</td>
+                            <td>{{ amount.disabled_cards }}</td>
+                            <td>{{ amount.exceeded_cards }}</td>
+                            <td class="text-center text-no-wrap">
+                                <v-btn
+                                    v-if="can(12)"
+                                    icon="mdi-plus-box-multiple-outline"
+                                    color="success"
+                                    variant="text"
+                                    size="x-small"
+                                    :aria-label="`Add ${betType(amount.bet_type_id)} ${money(amount.amount)} cards`"
+                                    title="Add cards"
+                                    :disabled="busy || !scheduled"
+                                    @click="openCards(amount)"
+                                />
+                                <v-btn
+                                    v-if="can(12)"
+                                    icon="mdi-minus-box-multiple-outline"
+                                    color="#a85b00"
+                                    variant="text"
+                                    size="x-small"
+                                    :aria-label="`Subtract ${betType(amount.bet_type_id)} ${money(amount.amount)} cards`"
+                                    title="Subtract unused cards"
+                                    :disabled="busy || !scheduled"
+                                    @click="openSubtract(amount)"
+                                />
+                                <v-btn
+                                    icon="mdi-cards-outline"
+                                    color="primary"
+                                    variant="text"
+                                    size="x-small"
+                                    :aria-label="`View ${betType(amount.bet_type_id)} ${money(amount.amount)} cards`"
+                                    title="View cards (opens in a new tab)"
+                                    :href="
+                                        EndingGameController.cardIndex.url(game.id, {
+                                            query: { bet_amount_id: amount.id },
+                                        })
+                                    "
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                />
+                            </td>
+                        </tr>
+                        <tr v-if="!amounts.length">
+                            <td colspan="6" class="text-center pa-8">
+                                No bet amounts yet. Create a bet to add cards.
+                            </td>
+                        </tr>
+                    </tbody>
+                </v-table>
+            </v-card>
+            <v-card class="ending-table">
                 <v-tabs v-model="tab" color="primary" show-arrows
                     ><v-tab value="results">Results</v-tab
                     ><v-tab value="cards">Cards ({{ cards.total }})</v-tab
@@ -372,6 +624,13 @@ function viewCard(card: GameCard) {
                     >
                 </div>
                 <div v-if="tab === 'cards'">
+                    <div v-if="cardAmountFilter" class="d-flex align-center flex-wrap ga-2 pa-3">
+                        <span class="text-caption"
+                            >Showing cards for bet amount #{{ cardAmountFilter }}</span
+                        ><v-btn size="small" variant="text" color="primary" @click="viewCards()"
+                            >Clear amount filter</v-btn
+                        >
+                    </div>
                     <v-expansion-panels variant="accordion" class="pa-3"
                         ><v-expansion-panel title="Bet amounts and prizes"
                             ><v-expansion-panel-text
@@ -555,12 +814,98 @@ function viewCard(card: GameCard) {
                 :teams="teams"
                 :presets="presets"
             />
-            <v-dialog v-model="resultDialog" max-width="550" :persistent="busy"
-                ><v-card
-                    ><v-card-title
-                        >{{ resultForm.id ? 'Correct Result' : 'Create Result' }} · Quarter
-                        {{ resultForm.quarter_id }}</v-card-title
+            <v-dialog
+                v-model="subtractDialog"
+                max-width="440"
+                :persistent="busy"
+                class="ending-dialog"
+            >
+                <v-card
+                    ><v-card-title>Subtract Cards</v-card-title
                     ><v-card-text>
+                        <p v-if="subtractAmount" class="mb-4">
+                            {{ betType(subtractAmount.bet_type_id) }} · PHP
+                            {{ money(subtractAmount.amount) }}
+                        </p>
+                        <p class="text-caption text-medium-emphasis mb-4">
+                            Only enabled cards without bets can be subtracted.
+                        </p>
+                        <v-alert
+                            v-if="subtractForm.hasErrors"
+                            type="error"
+                            variant="tonal"
+                            role="alert"
+                            class="mb-4"
+                            >{{ Object.values(subtractForm.errors).join(' ') }}</v-alert
+                        >
+                        <v-form id="ending-subtract-form" @submit.prevent="saveSubtraction"
+                            ><v-text-field
+                                v-model.number="subtractForm.quantity"
+                                type="number"
+                                label="Number of cards"
+                                min="1"
+                                max="1000"
+                                step="1"
+                                :disabled="busy"
+                        /></v-form> </v-card-text
+                    ><v-card-actions class="pa-4"
+                        ><v-spacer /><v-btn :disabled="busy" @click="subtractDialog = false"
+                            >Cancel</v-btn
+                        ><v-btn
+                            type="submit"
+                            form="ending-subtract-form"
+                            color="primary"
+                            variant="flat"
+                            :loading="busy"
+                            >Subtract Cards</v-btn
+                        ></v-card-actions
+                    ></v-card
+                >
+            </v-dialog>
+            <v-dialog
+                v-model="resultDialog"
+                max-width="640"
+                scrollable
+                :persistent="busy"
+                aria-labelledby="ending-result-title"
+                class="ending-dialog"
+            >
+                <v-card>
+                    <v-card-title class="ending-result-header">
+                        <div class="ending-result-heading">
+                            <span class="ending-result-heading-icon"
+                                ><v-icon icon="mdi-scoreboard-outline" size="22"
+                            /></span>
+                            <div>
+                                <h2 id="ending-result-title">
+                                    {{ resultForm.id ? 'Correct Result' : 'Create Result' }}
+                                </h2>
+                                <p>{{ game.league || 'Ending Game' }} · Game #{{ game.id }}</p>
+                            </div>
+                        </div>
+                        <v-btn
+                            icon="mdi-close"
+                            variant="text"
+                            size="small"
+                            aria-label="Close result dialog"
+                            :disabled="busy"
+                            @click="resultDialog = false"
+                        />
+                    </v-card-title>
+                    <v-divider />
+                    <v-card-text>
+                        <div class="ending-result-context">
+                            <p>
+                                {{
+                                    resultForm.id
+                                        ? 'Update the official scores for this quarter.'
+                                        : 'Enter the official scores for this quarter.'
+                                }}
+                            </p>
+                            <v-chip color="primary" size="small" variant="tonal"
+                                >Quarter {{ resultForm.quarter_id }}</v-chip
+                            >
+                        </div>
                         <v-alert
                             v-if="error"
                             type="error"
@@ -573,45 +918,99 @@ function viewCard(card: GameCard) {
                             id="ending-result-form"
                             :disabled="busy"
                             @submit.prevent="saveResult"
-                            ><v-text-field
-                                v-model.number="resultForm.team_a_score"
-                                :label="`${game.team_a_name} score`"
-                                type="number"
-                                min="0"
-                                max="9999" /><v-text-field
-                                v-model.number="resultForm.team_b_score"
-                                :label="`${game.team_b_name} score`"
-                                type="number"
-                                min="0"
-                                max="9999" />
-                            <p class="mb-4">
-                                Winning combination:
-                                <strong
+                        >
+                            <div class="ending-result-scoreboard">
+                                <div class="ending-result-team">
+                                    <EntityLogo
+                                        :src="game.team_a_logo"
+                                        :name="game.team_a_name"
+                                        :size="56"
+                                        aria-hidden="true"
+                                    />
+                                    <h3>{{ game.team_a_name || `Team #${game.team_a}` }}</h3>
+                                    <label for="ending-team-a-score">Score</label>
+                                    <v-text-field
+                                        id="ending-team-a-score"
+                                        v-model.number="resultForm.team_a_score"
+                                        :aria-label="`${game.team_a_name} score`"
+                                        :error-messages="resultForm.errors.team_a_score"
+                                        type="number"
+                                        inputmode="numeric"
+                                        variant="outlined"
+                                        min="0"
+                                        max="9999"
+                                        step="1"
+                                        hide-details="auto"
+                                    />
+                                </div>
+                                <span class="ending-result-versus" aria-hidden="true">vs</span>
+                                <div class="ending-result-team">
+                                    <EntityLogo
+                                        :src="game.team_b_logo"
+                                        :name="game.team_b_name"
+                                        :size="56"
+                                        aria-hidden="true"
+                                    />
+                                    <h3>{{ game.team_b_name || `Team #${game.team_b}` }}</h3>
+                                    <label for="ending-team-b-score">Score</label>
+                                    <v-text-field
+                                        id="ending-team-b-score"
+                                        v-model.number="resultForm.team_b_score"
+                                        :aria-label="`${game.team_b_name} score`"
+                                        :error-messages="resultForm.errors.team_b_score"
+                                        type="number"
+                                        inputmode="numeric"
+                                        variant="outlined"
+                                        min="0"
+                                        max="9999"
+                                        step="1"
+                                        hide-details="auto"
+                                    />
+                                </div>
+                            </div>
+                            <div class="ending-result-preview">
+                                <div class="ending-result-preview-label">Winning combination</div>
+                                <output
+                                    class="ending-result-combination"
+                                    aria-live="polite"
+                                    aria-label="Winning combination"
                                     >{{ Number(resultForm.team_a_score) % 10 }}-{{
                                         Number(resultForm.team_b_score) % 10
-                                    }}</strong
+                                    }}</output
                                 >
-                            </p>
+                                <p>The last digit of each score, in team order.</p>
+                            </div>
                             <v-textarea
                                 v-if="resultForm.id"
                                 v-model="resultForm.reason"
                                 label="Reason for correction"
+                                variant="outlined"
+                                :error-messages="resultForm.errors.reason"
                                 rows="2"
+                                class="mt-5"
                                 required
-                        /></v-form> </v-card-text
-                    ><v-card-actions
-                        ><v-spacer /><v-btn :disabled="busy" @click="resultDialog = false"
+                            />
+                        </v-form>
+                    </v-card-text>
+                    <v-divider />
+                    <v-card-actions class="ending-result-actions">
+                        <v-spacer /><v-btn
+                            variant="outlined"
+                            :disabled="busy"
+                            @click="resultDialog = false"
                             >Cancel</v-btn
                         ><v-btn
                             type="submit"
                             form="ending-result-form"
                             color="primary"
+                            variant="flat"
+                            prepend-icon="mdi-check"
                             :loading="busy"
                             >Save Result</v-btn
                         ></v-card-actions
                     ></v-card
-                ></v-dialog
-            >
+                >
+            </v-dialog>
             <v-dialog v-model="cardDialog" max-width="750" scrollable :persistent="busy"
                 ><v-card
                     ><v-card-title>Create Cards</v-card-title
@@ -782,5 +1181,353 @@ function viewCard(card: GameCard) {
 }
 :deep(.v-card-title) {
     white-space: normal;
+}
+.ending-overview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.ending-overview-identity {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.ending-overview-league {
+    font-size: 14px;
+    font-weight: 600;
+}
+.ending-overview-id {
+    padding-left: 10px;
+    border-left: 1px solid #dce2e7;
+    color: #757575;
+    font-size: 12px;
+}
+.ending-game-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin: 0 0 20px;
+    padding: 18px 0;
+    border-top: 1px solid #e8edf1;
+    border-bottom: 1px solid #e8edf1;
+}
+.ending-game-facts dt {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 7px;
+    color: #7b8590;
+    font-size: 11px;
+}
+.ending-game-facts dd {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.ending-game-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+.ending-action-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #e3e8ed;
+    border-top-width: 3px;
+    border-radius: 8px;
+}
+.ending-action-panel--betting {
+    border-top-color: #d99b45;
+    background: #fffdf8;
+}
+.ending-action-panel--results {
+    border-top-color: #00b6fe;
+    background: #f8fcff;
+}
+.ending-action-panel--files {
+    border-top-color: #b8c3ce;
+    background: #f8f9fb;
+}
+.ending-action-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.ending-action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+}
+.ending-action-panel--betting .ending-action-icon {
+    color: #a85b00;
+    background: #fff0d8;
+}
+.ending-action-panel--results .ending-action-icon {
+    color: #007fae;
+    background: #e4f5ff;
+}
+.ending-action-panel--files .ending-action-icon {
+    color: #748291;
+    background: #e9edf2;
+}
+.ending-action-heading h2 {
+    margin: 0;
+    color: #263441;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.ending-action-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.ending-action-status--open {
+    color: #247345;
+    background: #e7f4eb;
+}
+.ending-action-status--closed {
+    color: #647180;
+    background: #e9edf2;
+}
+.ending-action-status--results {
+    color: #126f98;
+    background: #e4f3fb;
+}
+.ending-action-description {
+    margin: 12px 0 18px;
+    color: #6b7784;
+    font-size: 12px;
+    line-height: 1.7;
+}
+.ending-action-button {
+    margin-top: auto;
+    min-height: 40px;
+    height: auto !important;
+}
+.ending-action-button :deep(.v-btn__content) {
+    padding-block: 10px;
+    white-space: normal;
+    font-weight: 500;
+}
+.ending-action-access {
+    margin: auto 0 0;
+    color: #84909c;
+    font-size: 11px;
+    line-height: 1.6;
+}
+.ending-file-progress {
+    display: grid;
+    gap: 10px;
+    align-self: stretch;
+    margin-top: 16px;
+    color: #5d6b79;
+    font-size: 12px;
+}
+.ending-action-panel--files .ending-action-description {
+    margin-bottom: 0;
+    font-size: 11px;
+}
+@media (max-width: 959px) {
+    .ending-game-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ending-action-panel--files {
+        grid-column: 1 / -1;
+    }
+}
+.ending-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.ending-result-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.ending-result-heading-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    color: rgb(var(--v-theme-primary));
+    background: #edfaff;
+}
+.ending-result-heading h2 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.4;
+}
+.ending-result-heading p {
+    margin: 4px 0 0;
+    color: #757575;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.ending-result-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.ending-result-context p {
+    margin: 0;
+    color: #757575;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.ending-result-context .v-chip {
+    flex-shrink: 0;
+    font-size: 11px;
+}
+.ending-result-scoreboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+}
+.ending-result-team {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid #e3e8ec;
+    border-radius: 8px;
+    background: #fafbfc;
+    text-align: center;
+}
+.ending-result-team h3 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    margin: 10px 0 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.ending-result-team label {
+    display: block;
+    margin-bottom: 8px;
+    color: #757575;
+    font-size: 11px;
+}
+.ending-result-team :deep(.v-field) {
+    background: white;
+}
+.ending-result-team :deep(.v-field__input) {
+    min-height: 64px;
+    padding: 10px 8px;
+    font-size: 30px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+.ending-result-versus {
+    color: #9e9e9e;
+    font-size: 12px;
+    text-align: center;
+}
+.ending-result-preview {
+    margin-top: 20px;
+    padding: 16px;
+    border: 1px solid #c6ebfa;
+    border-radius: 8px;
+    background: #f2fbff;
+    text-align: center;
+}
+.ending-result-preview-label {
+    color: #467588;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.ending-result-combination {
+    display: block;
+    margin: 6px 0;
+    color: #0085ba;
+    font-size: 34px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 4px;
+    line-height: 1.4;
+}
+.ending-result-preview p {
+    margin: 0;
+    color: #65818d;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.ending-result-actions {
+    gap: 8px;
+    padding: 16px 20px;
+}
+.ending-result-actions > .v-btn {
+    margin: 0;
+    padding-inline: 20px;
+}
+@media (max-width: 599px) {
+    .ending-game-facts {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .ending-game-actions {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .ending-result-heading {
+        gap: 10px;
+    }
+    .ending-result-heading h2 {
+        font-size: 16px;
+    }
+    .ending-result-context {
+        align-items: flex-start;
+    }
+    .ending-result-scoreboard {
+        grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+        gap: 8px;
+    }
+    .ending-result-team {
+        padding: 16px 10px;
+    }
+    .ending-result-team h3 {
+        font-size: 12px;
+    }
+    .ending-result-team :deep(.v-field__input) {
+        min-height: 56px;
+        font-size: 26px;
+    }
+    .ending-result-actions > .v-spacer {
+        display: none;
+    }
+    .ending-result-actions > .v-btn {
+        flex: 1;
+        padding-inline: 12px;
+    }
 }
 </style>

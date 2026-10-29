@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import type { AdminPageProps } from '../../types';
 import type { EndingGame, League, Team, Preset } from '../../types/ending';
 import { inputDate, money, betType } from '../../types/ending';
+import EntityLogo from './EntityLogo.vue';
 
 const open = defineModel<boolean>({ default: false });
 const props = defineProps<{
@@ -22,6 +23,23 @@ const form = useForm({
     presets: [] as Preset[],
 });
 const busy = computed(() => form.processing);
+const scheduleDate = ref('');
+const scheduleTime = ref('');
+watch([scheduleDate, scheduleTime], ([date, time]) => {
+    form.schedule = date && time ? `${date}T${time}` : '';
+});
+const groups = computed(() =>
+    [1, 2].map((type) => ({
+        type,
+        presets: form.presets.filter((p) => p.bet_type_id === type),
+        total: form.presets
+            .filter((p) => p.bet_type_id === type)
+            .reduce((total, p) => total + (Number(p.quantity) || 0), 0),
+    })),
+);
+function resetPresets() {
+    form.presets = props.presets.map((preset) => ({ ...preset }));
+}
 const errors = computed(() => form.errors);
 const error = computed(() => Object.values(form.errors).flat().join(' '));
 const teams = computed(() =>
@@ -37,6 +55,7 @@ watch(open, (value) => {
         presets: props.presets.map((p) => ({ ...p })),
     });
     form.resetAndClearErrors();
+    [scheduleDate.value, scheduleTime.value] = form.schedule ? form.schedule.split('T') : ['', ''];
 });
 watch(
     () => form.league_id,
@@ -60,7 +79,7 @@ function save() {
 }
 </script>
 <template>
-    <v-dialog v-model="open" max-width="900" scrollable :persistent="busy">
+    <v-dialog v-model="open" max-width="800" scrollable :persistent="busy" class="ending-dialog">
         <v-card>
             <v-card-title>{{ game ? 'Edit Game' : 'Create Game' }}</v-card-title
             ><v-divider />
@@ -75,6 +94,8 @@ function save() {
                         item-title="league"
                         item-value="id"
                         label="League"
+                        variant="outlined"
+                        density="compact"
                         :error-messages="errors.league_id"
                     />
                     <v-row
@@ -85,7 +106,20 @@ function save() {
                                 item-title="team_name"
                                 item-value="id"
                                 label="Team A"
-                                :error-messages="errors.team_a" /></v-col
+                                variant="outlined"
+                                density="compact"
+                                :error-messages="errors.team_a"
+                            >
+                                <template #item="{ props: itemProps, item }"
+                                    ><v-list-item v-bind="itemProps"
+                                        ><template #prepend
+                                            ><EntityLogo
+                                                :src="item.logo"
+                                                :name="item.team_name"
+                                                aria-hidden="true"
+                                                :size="24"
+                                                class="mr-2" /></template></v-list-item
+                                ></template> </v-autocomplete></v-col
                         ><v-col cols="12" sm="6"
                             ><v-autocomplete
                                 v-model="form.team_b"
@@ -93,42 +127,112 @@ function save() {
                                 item-title="team_name"
                                 item-value="id"
                                 label="Team B"
-                                :error-messages="errors.team_b" /></v-col
+                                variant="outlined"
+                                density="compact"
+                                :error-messages="errors.team_b"
+                            >
+                                <template #item="{ props: itemProps, item }"
+                                    ><v-list-item v-bind="itemProps"
+                                        ><template #prepend
+                                            ><EntityLogo
+                                                :src="item.logo"
+                                                :name="item.team_name"
+                                                aria-hidden="true"
+                                                :size="24"
+                                                class="mr-2" /></template></v-list-item
+                                ></template> </v-autocomplete></v-col
                     ></v-row>
-                    <v-text-field
-                        v-model="form.schedule"
-                        label="Schedule (Philippine time)"
-                        type="datetime-local"
-                        :error-messages="errors.schedule"
-                    />
+                    <v-row dense class="mt-1 mb-4">
+                        <v-col cols="12" sm="6"
+                            ><v-text-field
+                                v-model="scheduleDate"
+                                label="Schedule Date"
+                                type="date"
+                                :error-messages="errors.schedule"
+                        /></v-col>
+                        <v-col cols="12" sm="6"
+                            ><v-text-field
+                                v-model="scheduleTime"
+                                label="Schedule Time"
+                                type="time"
+                                hint="Philippine time (Asia/Manila)"
+                                persistent-hint
+                        /></v-col>
+                    </v-row>
                     <template v-if="!game">
-                        <h3 class="text-subtitle-1 mb-2">Preset cards</h3>
-                        <p class="text-caption mb-3">
-                            Prize amounts follow the current configuration. Set a quantity to zero
-                            to exclude a preset.
+                        <div class="d-flex align-center ga-2">
+                            <h3 class="text-subtitle-1">Card Preset</h3>
+                            <v-spacer />
+                            <v-btn
+                                color="primary"
+                                variant="text"
+                                size="small"
+                                prepend-icon="mdi-restore"
+                                :disabled="busy"
+                                @click="resetPresets"
+                                >Reset Defaults</v-btn
+                            >
+                        </div>
+                        <p class="text-caption text-medium-emphasis mb-3">
+                            Adjust these quantities for this game only. Use 0 to exclude a bet
+                            amount.
                         </p>
                         <v-row dense
-                            ><v-col
-                                v-for="preset in form.presets"
-                                :key="`${preset.bet_type_id}-${preset.config_id}`"
-                                cols="12"
-                                sm="6"
-                                md="4"
-                                ><v-text-field
-                                    v-model.number="preset.quantity"
-                                    type="number"
-                                    min="0"
-                                    max="1000"
-                                    :label="`${betType(preset.bet_type_id)} · ${money(preset.amount)}`" /></v-col
-                        ></v-row>
+                            ><v-col v-for="group in groups" :key="group.type" cols="12" sm="6"
+                                ><div class="ending-preset-panel">
+                                    <div
+                                        class="d-flex align-center justify-space-between px-3 py-2"
+                                    >
+                                        <span>{{ betType(group.type) }}</span
+                                        ><v-chip color="primary" size="x-small" variant="outlined"
+                                            >{{ group.total }} cards</v-chip
+                                        >
+                                    </div>
+                                    <v-table density="compact" class="ending-preset-table"
+                                        ><thead>
+                                            <tr>
+                                                <th>Bet amount</th>
+                                                <th class="text-right">Card quantity</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="preset in group.presets"
+                                                :key="preset.config_id"
+                                            >
+                                                <td>{{ money(preset.amount) }}</td>
+                                                <td>
+                                                    <v-text-field
+                                                        v-model.number="preset.quantity"
+                                                        type="number"
+                                                        min="0"
+                                                        max="1000"
+                                                        step="1"
+                                                        hide-details
+                                                        :aria-label="`${betType(preset.bet_type_id)} ${money(preset.amount)} card quantity`"
+                                                    />
+                                                </td>
+                                            </tr>
+                                            <tr v-if="!group.presets.length">
+                                                <td
+                                                    colspan="2"
+                                                    class="text-center text-medium-emphasis py-4"
+                                                >
+                                                    No active presets.
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </v-table>
+                                </div></v-col
+                            ></v-row
+                        >
                         <p v-if="!form.presets.length" class="text-medium-emphasis">
                             No preset cards configured. You can add cards from the game details.
                         </p>
                     </template>
                 </v-form> </v-card-text
             ><v-divider />
-            <v-card-actions
-                ><v-spacer /><v-btn :disabled="busy" @click="open = false">Cancel</v-btn
+            <v-card-actions class="ending-dialog-actions"
                 ><v-btn
                     color="primary"
                     variant="flat"
@@ -136,6 +240,8 @@ function save() {
                     form="ending-game-form"
                     :loading="busy"
                     >{{ game ? 'Save Changes' : 'Create Game' }}</v-btn
+                ><v-btn variant="outlined" :disabled="busy" @click="open = false"
+                    >Cancel</v-btn
                 ></v-card-actions
             >
         </v-card>

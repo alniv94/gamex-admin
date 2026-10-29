@@ -1,10 +1,13 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
-import { Head, router, usePage, Link } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
-import AdminLayout from '../../layouts/AdminLayout.vue';
+import { router, usePage, Link } from '@inertiajs/vue3';
+import { onBeforeUnmount, reactive, ref } from 'vue';
+import EndingShell from '../../components/ending/EndingShell.vue';
+import EndingToolbar from '../../components/ending/EndingToolbar.vue';
+import EntityLogo from '../../components/ending/EntityLogo.vue';
 import GameForm from '../../components/ending/GameForm.vue';
 import EndingPager from '../../components/ending/EndingPager.vue';
+import { exportEndingRows } from '../../composables/useEndingTable';
 import type { AdminPageProps } from '../../types';
 import type { EndingGame, League, Team, Preset, PageResult } from '../../types/ending';
 import { displayDate } from '../../types/ending';
@@ -24,70 +27,110 @@ const form = reactive({
     status: props.filters.status || null,
     date_from: props.filters.date_from || '',
     date_to: props.filters.date_to || '',
+    sort: props.filters.sort || 'schedule',
+    direction: props.filters.direction || 'desc',
 });
 const create = ref(false);
+const filtersOpen = ref(!!(form.league_id || form.status || form.date_from || form.date_to));
+let timer: ReturnType<typeof setTimeout> | undefined;
 function filter() {
     router.get(
         EndingGameController.index.url(),
-        { ...form },
-        { preserveState: true, replace: true },
+        { ...form, per_page: props.games.per_page },
+        { preserveState: true, preserveScroll: true, replace: true },
     );
 }
+function search() {
+    clearTimeout(timer);
+    timer = setTimeout(filter, 300);
+}
+onBeforeUnmount(() => clearTimeout(timer));
 function reset() {
-    form.search = '';
-    form.league_id = null;
-    form.status = null;
-    form.date_from = '';
-    form.date_to = '';
+    Object.assign(form, { search: '', league_id: null, status: null, date_from: '', date_to: '' });
     filter();
 }
+function sort(column: string) {
+    form.direction = form.sort === column && form.direction === 'desc' ? 'asc' : 'desc';
+    form.sort = column;
+    filter();
+}
+function exportRows() {
+    exportEndingRows('ending-scheduled-games.csv', [
+        [
+            'ID',
+            'League',
+            'Team A',
+            'Team B',
+            'Schedule',
+            'Betting',
+            'Status',
+            'Enabled at',
+            'Created at',
+        ],
+        ...props.games.data.map((game) => [
+            game.id,
+            game.league,
+            game.team_a_name,
+            game.team_b_name,
+            displayDate(game.schedule),
+            game.betting,
+            game.status,
+            displayDate(game.enabled_betting_at),
+            displayDate(game.created_at),
+        ]),
+    ]);
+}
 </script>
+
 <template>
-    <Head title="Scheduled Games" />
-    <AdminLayout
-        ><div class="pa-4 pa-md-6">
-            <div class="text-caption text-medium-emphasis">Ending Game</div>
-            <div class="d-flex align-center flex-wrap ga-3 mb-5">
-                <h1 class="text-h5 font-weight-bold">Scheduled Games</h1>
-                <v-spacer /><v-btn
+    <EndingShell title="Scheduled Games" :migration-ready="migrationReady">
+        <v-card>
+            <EndingToolbar
+                v-model="form.search"
+                :create-label="canCreate ? 'Create Game' : undefined"
+                :disabled="!migrationReady"
+                exportable
+                @create="create = true"
+                @refresh="router.reload()"
+                @search="search"
+                @export="exportRows"
+            >
+                <v-btn
+                    icon="mdi-filter-variant"
                     variant="text"
+                    size="small"
+                    aria-label="Toggle game filters"
+                    title="Filters"
+                    :aria-expanded="filtersOpen"
+                    :color="filtersOpen ? 'primary' : undefined"
+                    @click="filtersOpen = !filtersOpen"
+                />
+                <v-btn
+                    size="small"
+                    variant="text"
+                    aria-label="Historical Logs"
+                    title="Historical Logs"
+                    icon="mdi-history"
                     :href="EndingGameController.history.url()"
                     @click.prevent="router.visit(EndingGameController.history())"
-                    >Historical Logs</v-btn
-                ><v-btn
-                    v-if="canCreate"
-                    color="primary"
-                    :disabled="!migrationReady"
-                    prepend-icon="mdi-plus"
-                    @click="create = true"
-                    >Create Game</v-btn
-                >
-            </div>
-            <v-alert v-if="!migrationReady" type="info" variant="tonal" class="mb-4"
-                >Historical ending games are being prepared. Game creation becomes available after
-                the import is verified.</v-alert
-            >
-            <v-card>
-                <v-form class="pa-4" @submit.prevent="filter"
-                    ><v-row dense>
-                        <v-col cols="12" md="4"
-                            ><v-text-field
-                                v-model="form.search"
-                                label="Search teams or game ID"
-                                prepend-inner-icon="mdi-magnify"
-                                hide-details
-                        /></v-col>
-                        <v-col cols="12" sm="6" md="4"
+                />
+            </EndingToolbar>
+            <v-expand-transition>
+                <v-form v-if="filtersOpen" class="pa-4 pt-0" @submit.prevent="filter">
+                    <v-row dense>
+                        <v-col cols="12" sm="6" md="3"
                             ><v-select
                                 v-model="form.league_id"
                                 :items="leagues"
                                 item-title="league"
                                 item-value="id"
                                 label="League"
+                                variant="outlined"
+                                density="compact"
                                 clearable
                                 hide-details
                         /></v-col>
-                        <v-col cols="12" sm="6" md="4"
+                        <v-col cols="12" sm="6" md="3"
                             ><v-select
                                 v-model="form.status"
                                 :items="[
@@ -96,83 +139,159 @@ function reset() {
                                     { title: 'Finished', value: 'finished' },
                                 ]"
                                 label="Status"
+                                variant="outlined"
+                                density="compact"
                                 clearable
                                 hide-details
                         /></v-col>
-                        <v-col cols="12" sm="6" md="4"
+                        <v-col cols="12" sm="6" md="3"
                             ><v-text-field
                                 v-model="form.date_from"
                                 label="From (Philippines)"
                                 type="date"
-                                hide-details /></v-col
-                        ><v-col cols="12" sm="6" md="4"
+                                hide-details
+                        /></v-col>
+                        <v-col cols="12" sm="6" md="3"
                             ><v-text-field
                                 v-model="form.date_to"
                                 label="To (Philippines)"
                                 type="date"
                                 hide-details
                         /></v-col>
-                        <v-col cols="12" md="4" class="d-flex align-center ga-2"
-                            ><v-btn type="submit" color="primary" variant="outlined"
+                        <v-col cols="12" class="d-flex ga-2"
+                            ><v-btn type="submit" color="primary" variant="outlined" size="small"
                                 >Apply Filters</v-btn
-                            ><v-btn variant="text" @click="reset">Reset</v-btn></v-col
+                            ><v-btn variant="text" size="small" @click="reset">Reset</v-btn></v-col
                         >
-                    </v-row></v-form
-                ><v-divider />
-                <v-table
-                    ><thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>League / Game</th>
-                            <th>Schedule (Philippines)</th>
-                            <th>Betting</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="game in games.data" :key="game.id">
-                            <td>#{{ game.id }}</td>
-                            <td>
-                                <div class="text-caption text-medium-emphasis">
-                                    {{ game.league || 'Legacy league unavailable' }}
-                                </div>
-                                <Link
-                                    :href="EndingGameController.show.url(game.id)"
-                                    class="text-primary font-weight-medium"
-                                    >{{ game.team_a_name || `Team #${game.team_a}` }} vs
-                                    {{ game.team_b_name || `Team #${game.team_b}` }}</Link
-                                >
-                            </td>
-                            <td class="text-no-wrap">{{ displayDate(game.schedule) }}</td>
-                            <td>
-                                <v-chip
-                                    size="small"
-                                    :color="game.betting === 'Enabled' ? 'success' : 'default'"
-                                    >{{ game.betting }}</v-chip
-                                >
-                            </td>
-                            <td class="text-no-wrap">{{ game.status }}</td>
-                            <td>
-                                <v-btn
-                                    variant="text"
-                                    size="small"
-                                    :href="EndingGameController.show.url(game.id)"
-                                    @click.prevent="
-                                        router.visit(EndingGameController.show(game.id))
+                    </v-row>
+                    <v-alert
+                        v-if="Object.keys(page.props.errors).length"
+                        type="error"
+                        variant="tonal"
+                        role="alert"
+                        class="mt-3"
+                        >{{ Object.values(page.props.errors).join(' ') }}</v-alert
+                    >
+                </v-form>
+            </v-expand-transition>
+            <v-divider />
+            <v-table class="ending-table ending-games-table" density="compact">
+                <thead>
+                    <tr>
+                        <th class="text-center">Action</th>
+                        <th>League</th>
+                        <th>Game</th>
+                        <th>
+                            <button class="ending-sort" @click="sort('schedule')">
+                                Schedule
+                                <v-icon
+                                    :icon="
+                                        form.sort === 'schedule' && form.direction === 'asc'
+                                            ? 'mdi-arrow-up'
+                                            : 'mdi-arrow-down'
                                     "
-                                    >Details</v-btn
-                                >
-                            </td>
-                        </tr>
-                        <tr v-if="!games.data.length">
-                            <td colspan="6" class="text-center pa-8 text-medium-emphasis">
-                                No games found.
-                            </td>
-                        </tr>
-                    </tbody></v-table
-                ><EndingPager :page="games" />
-            </v-card>
-            <GameForm v-model="create" :leagues="leagues" :teams="teams" :presets="presets" /></div
-    ></AdminLayout>
+                                    size="12"
+                                />
+                            </button>
+                        </th>
+                        <th>Betting</th>
+                        <th>Status</th>
+                        <th>
+                            <button class="ending-sort" @click="sort('enabled_betting_at')">
+                                Enabled at
+                                <v-icon
+                                    :icon="
+                                        form.sort === 'enabled_betting_at' &&
+                                        form.direction === 'asc'
+                                            ? 'mdi-arrow-up'
+                                            : 'mdi-arrow-down'
+                                    "
+                                    size="12"
+                                />
+                            </button>
+                        </th>
+                        <th>
+                            <button class="ending-sort" @click="sort('created_at')">
+                                Created at
+                                <v-icon
+                                    :icon="
+                                        form.sort === 'created_at' && form.direction === 'asc'
+                                            ? 'mdi-arrow-up'
+                                            : 'mdi-arrow-down'
+                                    "
+                                    size="12"
+                                />
+                            </button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="game in games.data" :key="game.id">
+                        <td class="text-center">
+                            <v-btn
+                                icon="mdi-text-box-search-outline"
+                                variant="text"
+                                color="primary"
+                                size="x-small"
+                                :aria-label="'View game ' + game.id"
+                                :href="EndingGameController.show.url(game.id)"
+                                @click.prevent="router.visit(EndingGameController.show(game.id))"
+                            />
+                        </td>
+                        <td>{{ game.league || '—' }}</td>
+                        <td>
+                            <Link
+                                :href="EndingGameController.show.url(game.id)"
+                                class="ending-game-link"
+                                ><span class="ending-inline-team"
+                                    ><EntityLogo
+                                        :src="game.team_a_logo"
+                                        :name="game.team_a_name"
+                                        :size="26"
+                                    />{{ game.team_a_name || 'Team #' + game.team_a }}</span
+                                ><span class="ending-versus">vs</span
+                                ><span class="ending-inline-team"
+                                    ><EntityLogo
+                                        :src="game.team_b_logo"
+                                        :name="game.team_b_name"
+                                        :size="26"
+                                    />{{ game.team_b_name || 'Team #' + game.team_b }}</span
+                                ></Link
+                            >
+                        </td>
+                        <td class="text-no-wrap">{{ displayDate(game.schedule) }}</td>
+                        <td>
+                            <v-chip
+                                size="x-small"
+                                :color="game.betting === 'Enabled' ? 'success' : 'default'"
+                                >{{ game.betting }}</v-chip
+                            >
+                        </td>
+                        <td class="text-no-wrap">
+                            <v-chip
+                                size="x-small"
+                                :color="
+                                    game.game_status_id === 5
+                                        ? 'success'
+                                        : game.game_status_id
+                                          ? 'primary'
+                                          : 'warning'
+                                "
+                                >{{ game.status }}</v-chip
+                            >
+                        </td>
+                        <td class="text-no-wrap">{{ displayDate(game.enabled_betting_at) }}</td>
+                        <td class="text-no-wrap">{{ displayDate(game.created_at) }}</td>
+                    </tr>
+                    <tr v-if="!games.data.length">
+                        <td colspan="8" class="text-center pa-8 text-medium-emphasis">
+                            No games found.
+                        </td>
+                    </tr>
+                </tbody>
+            </v-table>
+            <EndingPager :page="games" selectable />
+        </v-card>
+        <GameForm v-model="create" :leagues="leagues" :teams="teams" :presets="presets" />
+    </EndingShell>
 </template>

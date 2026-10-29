@@ -98,10 +98,12 @@ class EndingGame extends EndingRecord
         return [
             'id' => $this->id, 'team_a' => $this->team_a, 'team_b' => $this->team_b,
             'team_a_name' => $this->teamA?->team_name, 'team_b_name' => $this->teamB?->team_name,
+            'team_a_logo' => $this->teamA?->logo, 'team_b_logo' => $this->teamB?->logo,
             'league_id' => $this->teamA?->league_id, 'league' => $this->teamA?->league?->league,
             'schedule' => $this->schedule?->toIso8601String(), 'betting' => $this->betting,
             'game_status_id' => $this->game_status_id, 'status' => $this->gameStatus->status ?? 'Scheduled',
             'is_max' => $this->is_max, 'is_lucky_four' => $this->is_lucky_four, 'is_power_ball' => $this->is_power_ball,
+            'created_at' => $this->created_at?->toIso8601String(), 'enabled_betting_at' => $this->enabled_betting_at?->toIso8601String(),
         ];
     }
 }

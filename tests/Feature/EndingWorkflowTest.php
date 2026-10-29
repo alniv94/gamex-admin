@@ -81,6 +81,7 @@ class EndingWorkflowTest extends TestCase
         foreach ([
             ['post', ''], ['put', "/$game->id"], ['put', "/$game->id/betting"],
             ['post', "/$game->id/cards"], ['put', "/$game->id/cards/$card->id/betting"],
+            ['put', "/$game->id/bet-amounts/$amount->id/cards"],
             ['post', "/$game->id/results"], ['put', "/$game->id/results/$result->id"],
             ['post', "/$game->id/winners/verify"], ['post', "/$game->id/winners/unverify"], ['post', "/$game->id/winners/approve"],
         ] as [$method, $path]) {

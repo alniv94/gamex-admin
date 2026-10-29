@@ -5,15 +5,27 @@ export interface PageResult<T> {
     total: number;
     next_page_url: string | null;
     prev_page_url: string | null;
+    per_page: number;
+    from: number | null;
+    to: number | null;
 }
 export interface League {
     id: number;
     league: string;
+    logo?: string | null;
+    is_local?: string;
+    is_active?: string;
+    created_at?: string | null;
 }
 export interface Team {
     id: number;
     league_id: number;
     team_name: string;
+    team_alias?: string | null;
+    logo?: string | null;
+    is_active?: string;
+    created_at?: string | null;
+    league?: League | null;
 }
 export interface Preset {
     config_id: number;
@@ -27,6 +39,8 @@ export interface EndingGame {
     team_b: number;
     team_a_name: string;
     team_b_name: string;
+    team_a_logo: string | null;
+    team_b_logo: string | null;
     league_id: number | null;
     league: string | null;
     schedule: string | null;
@@ -36,6 +50,8 @@ export interface EndingGame {
     is_max: string;
     is_lucky_four: string;
     is_power_ball: string;
+    created_at: string | null;
+    enabled_betting_at: string | null;
 }
 export interface GameResult {
     id: number;
@@ -89,6 +105,22 @@ export interface BetAmount {
     amount: string;
     bet_type_id: number;
     cards: number;
+    disabled_cards: number;
+    generated_cards: number;
+    exceeded_cards: number;
+}
+export interface ConfigRecord {
+    id: number;
+    config_name: string;
+    config_desc: string | null;
+    config_value: string;
+}
+export interface CardPreset {
+    id: number;
+    bet_type_id: number;
+    amount: string;
+    card_quantity: number;
+    status: string;
 }
 export interface Prize {
     bet_amount_id: number;

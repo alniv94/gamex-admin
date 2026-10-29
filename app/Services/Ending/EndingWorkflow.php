@@ -74,6 +74,7 @@ class EndingWorkflow
                 }
             }
             $total = 0;
+            $presetSnapshots = [];
             foreach ([1 => EndingTraditionalBetAmountConfig::class, 2 => EndingPerQuarterBetAmountConfig::class] as $type => $table) {
                 foreach ($table::available()->get() as $preset) {
                     $quantity = $preset->card_quantity;
@@ -83,19 +84,28 @@ class EndingWorkflow
                     }
                     $total += (int) $quantity;
                     $this->check($total <= 10000, 'presets', 'A game may have at most 10,000 initial cards.');
+                    $prizes = [];
+                    $amountId = null;
                     if ($quantity > 0) {
-                        $prizes = [];
                         foreach ([1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th'] as $quarter => $label) {
                             $name = ($type === 1 ? 'Traditional' : 'Per Quarter')." Card - {$label} Quarter Prize Percent";
                             $multiplier = $prizeConfig->get($name);
                             $this->check(is_numeric($multiplier) && (float) $multiplier >= 0, 'presets', 'Prize configuration is incomplete.');
                             $prizes[] = ['quarter_id' => $quarter, 'is_cash' => 'Cash', 'cash_prize' => $this->multiply((string) $preset->amount, (string) $multiplier), 'other_prize' => null];
                         }
-                        $this->cards($game, $type, (string) $preset->amount, (int) $quantity, $prizes);
+                        $amountId = $this->cards($game, $type, (string) $preset->amount, (int) $quantity, $prizes);
                     }
+                    $presetSnapshots[] = [
+                        'config_id' => $preset->id, 'bet_amount_id' => $amountId, 'bet_type_id' => $type,
+                        'amount' => $preset->amount, 'quantity' => (int) $quantity, 'prizes' => $prizes,
+                    ];
                 }
             }
-            $this->log($request, $id, 'create_game', 'game', $id, null, $teams + ['schedule' => $schedule, 'cards' => $total]);
+            $game->loadMissing(['teamA.league', 'teamB']);
+            $this->log($request, $id, 'create_game', 'game', $id, null, $teams + [
+                'team_a_name' => $game->teamA?->team_name, 'team_b_name' => $game->teamB?->team_name,
+                'league' => $game->teamA?->league?->league, 'schedule' => $schedule, 'cards' => $total, 'presets' => $presetSnapshots,
+            ]);
 
             return $id;
         });
@@ -140,13 +150,17 @@ class EndingWorkflow
         $this->write($id, function ($game) use ($request, $id): void {
             $this->check(! $game->game_status_id && $game->schedule && $game->schedule->isFuture() && ! $this->results($id)->exists(), 'cards', 'Cards can only be created before the game starts.');
             $amountId = $request->integer('bet_amount_id');
+            $gameCards = $game->cards()->count();
             if ($amountId) {
-                abort_unless(EndingBetAmount::query()->where('id', $amountId)->where('game_id', $id)->exists(), 404);
+                $amount = $game->betAmounts()->findOrFail($amountId);
+                $before = $this->cardSnapshot($amount, $gameCards);
                 $this->insertCards($amountId, $request->integer('quantity'));
             } else {
+                $before = ['cards' => 0, 'game_cards' => $gameCards];
                 $amountId = $this->cards($game, $request->integer('bet_type_id'), $request->string('amount')->toString(), $request->integer('quantity'), $request->input('prizes'));
             }
-            $this->log($request, $id, 'add_card', 'bet_amount', $amountId, null, ['quantity' => $request->integer('quantity')]);
+            $after = $this->cardSnapshot($game->betAmounts()->findOrFail($amountId), $game->cards()->count());
+            $this->log($request, $id, 'add_card', 'bet_amount', $amountId, $before, $after + ['cards_added' => $request->integer('quantity')]);
         });
     }
 
@@ -163,6 +177,22 @@ class EndingWorkflow
             $before = ['betting' => $card->betting];
             $card->update(['betting' => $betting]);
             $this->log($request, $id, 'card_betting', 'card', $cardId, $before, ['betting' => $betting]);
+        });
+    }
+
+    public function subtractCards(Request $request, int $id, int $amountId): void
+    {
+        $this->write($id, function ($game) use ($request, $id, $amountId): void {
+            $this->check(! $game->game_status_id && $game->schedule && $game->schedule->isFuture() && ! $game->results()->exists(), 'cards', 'Cards cannot change after the game starts.');
+            $amount = $game->betAmounts()->findOrFail($amountId);
+            $cards = $amount->cards()->where('betting', 'Enabled')->where('refunded', 'No')->whereDoesntHave('bets')
+                ->orderByDesc('id')->limit($request->integer('quantity'))->lockForUpdate()->get();
+            $this->check($cards->count() === $request->integer('quantity'), 'quantity', 'There are not enough enabled cards without bets to subtract this quantity.');
+            foreach ($cards as $card) {
+                $card->update(['betting' => 'Disabled']);
+            }
+            $this->log($request, $id, 'subtract_card', 'bet_amount', $amountId,
+                ['card_ids' => $cards->modelKeys(), 'betting' => 'Enabled'], ['card_ids' => $cards->modelKeys(), 'betting' => 'Disabled']);
         });
     }
 
@@ -319,6 +349,17 @@ class EndingWorkflow
         foreach (array_chunk($cards, 100) as $rows) {
             EndingCard::query()->insert($rows);
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function cardSnapshot(EndingBetAmount $amount, int $gameCards): array
+    {
+        return [
+            'bet_amount_id' => $amount->id, 'bet_type_id' => $amount->bet_type_id, 'amount' => $amount->amount,
+            'cards' => $amount->cards()->count(), 'game_cards' => $gameCards,
+            'prizes' => $amount->prizes()->orderBy('quarter_id')->orderBy('id')
+                ->get(['quarter_id', 'is_cash', 'cash_prize', 'other_prize'])->toArray(),
+        ];
     }
 
     private function multiply(string $amount, string $factor): string

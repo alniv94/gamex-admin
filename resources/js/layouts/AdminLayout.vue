@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
+import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useDisplay } from 'vuetify';
@@ -9,6 +10,31 @@ import type { AdminPageProps } from '../types';
 
 const page = usePage<AdminPageProps>();
 const user = computed(() => page.props.auth.user);
+const endingNavigation = computed(() =>
+    [
+        {
+            title: 'Scheduled Games',
+            icon: 'scheduled-games',
+            permission: 17,
+            route: EndingGameController.index(),
+        },
+        { title: 'Teams', icon: 'teams', permission: 18, route: EndingCatalogController.teams() },
+        {
+            title: 'Leagues',
+            icon: 'leagues',
+            permission: 19,
+            route: EndingCatalogController.leagues(),
+        },
+        {
+            title: 'Config',
+            icon: 'config',
+            permission: 20,
+            route: EndingCatalogController.configuration(),
+        },
+    ].filter((item) =>
+        user.value?.permissions.some((permission) => permission.id === item.permission),
+    ),
+);
 const firstName = computed(() => user.value?.name?.trim().split(/\s+/)[0] || 'Administrator');
 const { width } = useDisplay();
 const drawer = ref(width.value >= 1264);
@@ -51,7 +77,7 @@ async function logout() {
                     href="/dashboard"
                     color="primary"
                     :active="page.url.startsWith('/dashboard')"
-                    variant="tonal"
+                    variant="text"
                     @click.prevent="dashboard"
                 >
                     <template #prepend
@@ -59,19 +85,28 @@ async function logout() {
                     /></template>
                     <v-list-item-title>Dashboard</v-list-item-title>
                 </v-list-item>
+                <v-list-subheader v-if="endingNavigation.length" class="mt-3 font-weight-bold"
+                    >Ending Game</v-list-subheader
+                >
                 <v-list-item
-                    v-if="user?.permissions.some((p) => p.id === 17)"
-                    :href="EndingGameController.index.url()"
+                    v-for="item in endingNavigation"
+                    :key="item.icon"
+                    :href="item.route.url"
                     color="primary"
-                    :active="page.url.startsWith('/ending')"
-                    variant="tonal"
-                    prepend-icon="mdi-basketball"
+                    :active="page.url.split('?')[0].startsWith(item.route.url)"
+                    variant="text"
                     @click.prevent="
-                        router.visit(EndingGameController.index());
+                        router.visit(item.route);
                         drawer = width >= 1264;
                     "
                 >
-                    <v-list-item-title>Ending Games</v-list-item-title>
+                    <template #prepend
+                        ><img
+                            :src="`/images/navigation/${item.icon}.png`"
+                            alt=""
+                            class="navigation-icon"
+                    /></template>
+                    <v-list-item-title>{{ item.title }}</v-list-item-title>
                 </v-list-item>
             </v-list>
         </v-navigation-drawer>

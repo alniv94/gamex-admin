@@ -339,3 +339,235 @@ button:disabled {
         scroll-behavior: auto !important;
     }
 }
+
+.ending-page {
+    padding: 20px 24px;
+    min-width: 0;
+}
+.ending-breadcrumb {
+    font-size: 12px;
+    color: #9e9e9e;
+}
+.ending-page-title {
+    font-size: 20px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+.ending-toolbar {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+}
+.ending-toolbar .v-btn--icon {
+    width: 32px;
+    height: 32px !important;
+    font-size: 16px;
+}
+.ending-toolbar h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+.ending-toolbar > h2 {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 1.25px;
+}
+.ending-search {
+    flex: 0 1 400px;
+    min-width: 160px;
+}
+.ending-page .v-field__input,
+.ending-page .v-label,
+.ending-dialog .v-field__input,
+.ending-dialog .v-label {
+    font-size: 12px;
+}
+.ending-page .text-caption,
+.ending-dialog .text-caption {
+    font-size: 11px;
+    line-height: 1.5;
+}
+.ending-page .v-btn,
+.ending-dialog .v-btn {
+    font-size: 11px;
+}
+.ending-dialog h3 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.ending-dialog .v-alert {
+    font-size: 12px;
+}
+.ending-table {
+    font-size: 12px;
+    --v-table-row-height: 44px;
+    --v-table-header-height: 42px;
+}
+.ending-table th {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 400 !important;
+    white-space: nowrap;
+}
+.ending-table td {
+    padding-block: 4px !important;
+}
+.ending-table .v-chip {
+    font-size: 10px;
+}
+.ending-table .v-data-table-footer {
+    font-size: 12px;
+}
+.ending-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+.ending-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.ending-logo-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    background: #eef8fc;
+    color: #49849e;
+    font-size: 10px;
+}
+.ending-game-link,
+.ending-inline-team {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.ending-game-link {
+    color: inherit;
+    text-decoration: none;
+    gap: 10px;
+    white-space: nowrap;
+}
+.ending-game-link:hover {
+    color: rgb(var(--v-theme-primary));
+}
+.ending-versus {
+    color: #9e9e9e;
+    font-style: italic;
+}
+.ending-sort {
+    color: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
+}
+.ending-page-size {
+    flex: 0 0 60px;
+    min-width: 60px;
+    font-size: 12px;
+}
+.ending-dialog .v-card-title {
+    font-size: 20px;
+    padding: 16px 20px;
+}
+.ending-dialog .v-card-text {
+    padding: 16px 20px !important;
+}
+.ending-dialog-actions {
+    padding: 12px 20px 16px;
+    display: flex;
+    gap: 8px;
+}
+.ending-dialog-actions > .v-btn {
+    flex: 1;
+    margin: 0 !important;
+}
+.ending-preset-panel {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    overflow: hidden;
+    font-size: 13px;
+}
+.ending-preset-table {
+    font-size: 12px;
+}
+.ending-preset-table th {
+    font-size: 11px;
+    font-weight: 400 !important;
+    border-top: 1px solid #ddd;
+    height: 30px !important;
+}
+.ending-preset-table td {
+    height: 40px !important;
+}
+.ending-preset-table td:last-child {
+    width: 118px;
+    padding: 3px 16px !important;
+}
+.ending-preset-table .v-field__input {
+    min-height: 30px;
+    padding: 5px 10px;
+}
+.ending-matchup-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin: 16px auto 28px;
+}
+.ending-matchup-team {
+    width: 180px;
+    text-align: center;
+    font-size: 12px;
+}
+.ending-matchup-team .ending-logo {
+    margin-bottom: 12px;
+}
+.ending-detail-list {
+    margin: 0;
+    font-size: 12px;
+}
+.ending-detail-list > div {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    padding: 7px 12px;
+    gap: 12px;
+    border-bottom: 1px solid #ddd;
+}
+.ending-detail-list dt {
+    color: #9e9e9e;
+}
+.ending-detail-list dd {
+    margin: 0;
+}
+@media (max-width: 599px) {
+    .ending-page {
+        padding: 16px 12px;
+    }
+    .ending-toolbar {
+        padding: 12px;
+    }
+    .ending-search {
+        flex-basis: 100%;
+    }
+    .ending-matchup-logos {
+        gap: 12px;
+    }
+    .ending-matchup-team {
+        width: 125px;
+    }
+}

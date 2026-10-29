@@ -56,8 +56,8 @@ class EndingQueries
         }
 
         return [
-            'leagues' => EndingLeague::active()->orderBy('league')->get(['id', 'league']),
-            'teams' => EndingTeam::active()->orderBy('team_name')->get(['id', 'league_id', 'team_name']),
+            'leagues' => EndingLeague::active()->orderBy('league')->get(['id', 'league', 'logo']),
+            'teams' => EndingTeam::active()->orderBy('team_name')->get(['id', 'league_id', 'team_name', 'logo']),
             'presets' => $presets,
         ];
     }

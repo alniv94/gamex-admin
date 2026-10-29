@@ -30,7 +30,7 @@ if (DB::connection()->getDriverName() !== 'sqlite' || str_replace('\\', '/', DB:
 }
 Artisan::call('migrate', ['--force' => true]);
 Storage::disk('local')->deleteDirectory('browser-notifications');
-foreach ([17, 32, 10, 12, 11, 34, 8, 9] as $permission) {
+foreach ([17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
     DB::table('admin_permissions')->insert(['id' => $permission, 'name' => 'Test permission '.$permission, 'module_order' => $permission]);
 }
 Schema::create('players', function (Blueprint $t): void {
@@ -62,7 +62,7 @@ for ($i = 1; $i <= 6; $i++) {
         'user_id' => $user->id, 'legacy_admin_id' => $user->id,
         'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64),
     ]);
-    foreach ([17, 32, 10, 12, 11, 34, 8, 9] as $permission) {
+    foreach ([17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
         DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
     }
     DB::table('ending_games')->insert(['id' => 100 + $i, 'team_a' => 1, 'team_b' => 2, 'schedule' => now()->subHour(), 'created_at' => now()]);
@@ -71,6 +71,10 @@ for ($i = 1; $i <= 6; $i++) {
         DB::table('ending_bet_amount_prizes')->insert(['bet_amount_id' => 200 + $i, 'quarter_id' => $quarter, 'cash_prize' => '150.00']);
     }
     DB::table('ending_cards')->insert(['id' => 300 + $i, 'bet_amount_id' => 200 + $i]);
+    DB::table('admin_ending_logs')->insert([
+        'game_id' => 100 + $i, 'user_id' => $user->id, 'action' => 'add_card', 'subject_type' => 'bet_amount',
+        'subject_id' => 200 + $i, 'before' => null, 'after' => json_encode(['quantity' => 1], JSON_THROW_ON_ERROR), 'created_at' => now()->subHour(),
+    ]);
     DB::table('ending_bets')->insert(['id' => 400 + $i, 'player_id' => 9, 'card_id' => 300 + $i, 'slot_id' => 11, 'quarter_id' => 0]);
 }
 echo 'Isolated browser fixtures ready.'.PHP_EOL;
