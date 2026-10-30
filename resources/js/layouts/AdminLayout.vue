@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
+import { index as playerList } from '@/actions/App/Http/Controllers/PlayerController';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useDisplay } from 'vuetify';
@@ -38,6 +39,7 @@ const endingNavigation = computed(() =>
 const firstName = computed(() => user.value?.name?.trim().split(/\s+/)[0] || 'Administrator');
 const { width } = useDisplay();
 const drawer = ref(width.value >= 1264);
+const openedGroups = ref(['players']);
 const busy = ref(false);
 const error = ref('');
 const api = useAdminApi();
@@ -72,7 +74,7 @@ async function logout() {
             aria-label="Main navigation"
         >
             <div class="drawer-brand"><BrandLogo /></div>
-            <v-list class="legacy-navigation pt-0">
+            <v-list v-model:opened="openedGroups" class="legacy-navigation pt-0">
                 <v-list-item
                     href="/dashboard"
                     color="primary"
@@ -85,6 +87,43 @@ async function logout() {
                     /></template>
                     <v-list-item-title>Dashboard</v-list-item-title>
                 </v-list-item>
+                <v-list-group
+                    v-if="user?.permissions.some((permission) => permission.id === 1)"
+                    value="players"
+                >
+                    <template #activator="{ props }"
+                        ><v-list-item
+                            v-bind="props"
+                            color="primary"
+                            :active="
+                                page.url.startsWith('/players') || page.url.startsWith('/player/')
+                            "
+                            ><template #prepend
+                                ><v-icon
+                                    icon="mdi-account-group"
+                                    color="#0097a7"
+                                    class="navigation-icon" /></template
+                            ><v-list-item-title>Players</v-list-item-title></v-list-item
+                        ></template
+                    >
+                    <v-list-item
+                        :href="playerList.url()"
+                        color="primary"
+                        :active="
+                            page.url.startsWith('/players/list') || page.url.startsWith('/player/')
+                        "
+                        @click.prevent="
+                            router.visit(playerList());
+                            drawer = width >= 1264;
+                        "
+                        ><template #prepend
+                            ><img
+                                src="/images/navigation/player-list.png"
+                                alt=""
+                                class="navigation-icon" /></template
+                        ><v-list-item-title>Player List</v-list-item-title></v-list-item
+                    >
+                </v-list-group>
                 <v-list-subheader v-if="endingNavigation.length" class="mt-3 font-weight-bold"
                     >Ending Game</v-list-subheader
                 >

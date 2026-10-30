@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
+use App\Http\Controllers\PlayerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,16 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/players/list', [PlayerController::class, 'index'])->name('players.index');
+    Route::get('/players/export', [PlayerController::class, 'export'])->name('players.export');
+    Route::get('/player/{player}', [PlayerController::class, 'show'])->whereNumber('player')->name('players.show');
+    Route::get('/player/{player}/duplicates', [PlayerController::class, 'duplicates'])->whereNumber('player')->name('players.duplicates');
+    Route::get('/players/{player}/ndrp', [PlayerController::class, 'ndrp'])->whereNumber('player')->middleware('throttle:30,1')->name('players.ndrp');
+    Route::get('/players/{player}/images/{kind}', [PlayerController::class, 'image'])->whereNumber('player')->whereIn('kind', ['selfie', 'valid_id'])->name('players.image');
+    Route::post('/players/{player}/verify', [PlayerController::class, 'verify'])->whereNumber('player')->name('players.verify');
+    Route::post('/players/{player}/reject', [PlayerController::class, 'reject'])->whereNumber('player')->name('players.reject');
+    Route::put('/players/{player}/settings/{setting}', [PlayerController::class, 'setting'])->whereNumber('player')->whereIn('setting', ['betting', 'cashin', 'cashout', 'account'])->name('players.setting');
+    Route::post('/players/{player}/fund-accounts/{fund}/{action}', [PlayerController::class, 'fund'])->whereNumber(['player', 'fund'])->whereIn('action', ['verify', 'reject'])->name('players.fund');
     Route::get('/ending/teams', [EndingCatalogController::class, 'teams'])->name('ending.teams.index');
     Route::post('/ending/teams', [EndingCatalogController::class, 'storeTeam'])->name('ending.teams.store');
     Route::put('/ending/teams/{team}', [EndingCatalogController::class, 'updateTeam'])->whereNumber('team')->name('ending.teams.update');

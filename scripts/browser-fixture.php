@@ -3,11 +3,10 @@
 use App\Models\AdminProfile;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\PlayerFixtures;
 
 require __DIR__.'/../vendor/autoload.php';
 $expected = str_replace('\\', '/', dirname(__DIR__).'/storage/framework/testing/admin-browser.sqlite');
@@ -30,14 +29,30 @@ if (DB::connection()->getDriverName() !== 'sqlite' || str_replace('\\', '/', DB:
 }
 Artisan::call('migrate', ['--force' => true]);
 Storage::disk('local')->deleteDirectory('browser-notifications');
-foreach ([17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
+foreach ([1, 23, 24, 17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
     DB::table('admin_permissions')->insert(['id' => $permission, 'name' => 'Test permission '.$permission, 'module_order' => $permission]);
 }
-Schema::create('players', function (Blueprint $t): void {
-    $t->id();
-    $t->string('name');
-});
-DB::table('players')->insert(['id' => 9, 'name' => 'Browser Test Player']);
+$playerFixture = new class
+{
+    use PlayerFixtures;
+
+    public function seed(): void
+    {
+        $this->playerFixtures();
+    }
+};
+$playerFixture->seed();
+DB::table('players')->where('id', 9)->update(['name' => 'Browser Test Player']);
+for ($index = 1; $index <= 3; $index++) {
+    foreach ([1000, 1100] as $offset) {
+        DB::table('players')->insert(['id' => $offset + $index, 'name' => 'Browser Player '.$offset.' '.$index, 'mobile_number' => '+63919999999'.$index, 'email' => 'browser'.$offset.$index.'@example.test', 'status' => 'Active', 'created_at' => now()]);
+        DB::table('player_profiles')->insert(['player_id' => $offset + $index, 'first_name' => 'Browser', 'last_name' => 'Player', 'birthdate' => '1997-08-13', 'kyc_status' => 'Files Submitted']);
+    }
+    DB::table('admin_player_fund_accounts')->insert(['id' => $index, 'player_id' => 1000 + $index, 'bank_id' => 1, 'account_number' => '912345678'.$index]);
+    DB::table('player_wallet')->insert(['player_id' => 1000 + $index, 'actual_amount' => '100.25']);
+    DB::table('player_wallet_transactions')->insert(['player_id' => 1000 + $index, 'transaction_type_id' => 1, 'description' => 'Browser wallet transaction', 'amount' => '100.25', 'created_at' => now()]);
+    DB::table('admin_player_logs')->insert(['player_id' => 1000 + $index, 'action' => 'login', 'details' => 'Browser player logged in', 'created_at' => now()]);
+}
 DB::table('ending_leagues')->insert(['id' => 1, 'league' => 'Test League']);
 DB::table('ending_teams')->insert([['id' => 1, 'league_id' => 1, 'team_name' => 'Blue Team'], ['id' => 2, 'league_id' => 1, 'team_name' => 'Red Team']]);
 foreach ([1 => 'Started', 2 => 'End of 1st Quarter', 3 => 'End of 2nd Quarter', 4 => 'End of 3rd Quarter', 5 => 'Finished'] as $id => $status) {
@@ -62,7 +77,7 @@ for ($i = 1; $i <= 6; $i++) {
         'user_id' => $user->id, 'legacy_admin_id' => $user->id,
         'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64),
     ]);
-    foreach ([17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
+    foreach ([1, 23, 24, 17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
         DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
     }
     DB::table('ending_games')->insert(['id' => 100 + $i, 'team_a' => 1, 'team_b' => 2, 'schedule' => now()->subHour(), 'created_at' => now()]);
@@ -76,5 +91,12 @@ for ($i = 1; $i <= 6; $i++) {
         'subject_id' => 200 + $i, 'before' => null, 'after' => json_encode(['quantity' => 1], JSON_THROW_ON_ERROR), 'created_at' => now()->subHour(),
     ]);
     DB::table('ending_bets')->insert(['id' => 400 + $i, 'player_id' => 9, 'card_id' => 300 + $i, 'slot_id' => 11, 'quarter_id' => 0]);
+}
+for ($index = 7; $index <= 9; $index++) {
+    $user = User::factory()->create(['name' => 'Player Test Administrator '.$index, 'mobile_number' => '+6391'.$index.'1234567', 'email' => 'player-admin'.$index.'@example.test', 'status' => 'Active']);
+    AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64)]);
+    foreach ([1, 23, 24] as $permission) {
+        DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
+    }
 }
 echo 'Isolated browser fixtures ready.'.PHP_EOL;

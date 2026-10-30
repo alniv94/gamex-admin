@@ -13,6 +13,11 @@ class AdminSms
     public function send(string $mobile, string $code): void
     {
         $message = 'Your GameXSports admin sign-in code is '.$code.'. It expires in 5 minutes. Do not share this code.';
+        $this->sendMessage($mobile, $message);
+    }
+
+    public function sendMessage(string $mobile, string $message): void
+    {
         if (config('admin.sms.driver') === 'capture' && app()->environment(['local', 'testing'])) {
             $folder = getenv('ADMIN_BROWSER_TEST') === '1' ? 'browser-notifications' : 'notifications';
             Storage::disk('local')->put($folder.'/'.Str::uuid().'.json', json_encode([
