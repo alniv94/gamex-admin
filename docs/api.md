@@ -60,4 +60,4 @@ Player records and player sessions cannot authenticate to these routes. The `gam
 | 429    | Request/verification limit or send lock                                       |
 | 503    | SMS is unavailable or the provider rejected the request                       |
 
-Public registration, password login, and password reset are not exposed. Ending game routes and their permissions are documented in [ending-games.md](ending-games.md).
+Public registration, password login, and password reset are not exposed. Ending game routes and their permissions are documented in [ending-games.md](ending-games.md). Player list/detail routes, filters, review payloads, permissions, and Inertia responses are documented in [players.md](players.md#routes-and-request-contracts). Player mutations require CSRF protection for POST and PUT requests; NDRP lookup and private-image reads use the same administrator session.

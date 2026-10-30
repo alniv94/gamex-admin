@@ -17,6 +17,8 @@ The authenticated layout follows `admin-portal/src/components/Navbar.vue`, `Navb
 
 The Ending Games module ports the original Scheduled Games list, Create Game preset editor, game details, card and bet inspection, quarterly results, and winner verification/approval. It retains the original cyan controls, white cards, compact tables, and dialogs. Filters and history lists paginate on the server. All dates use Philippine time. The navigation and action buttons follow the original permission IDs, with matching server checks. New activity records include before/after values and correction reasons; historical logs remain separately identifiable.
 
+The Players module ports `admin-portal/src/views/players/PlayerList.vue`, `PlayerDetails.vue`, and their related player-detail components. It retains the list columns, refresh/export toolbar, search/filter controls, Other Details menu, verification chips, separate-tab detail action, NDRP summary, personal-information/address sections, image viewer, fund-account review, confirmation dialogs, and Transactions / Player Logs / Admin Logs tabs. The detail columns stack on smaller screens. Missing images and unavailable NDRP results have explicit states. Navigation and review controls use permission IDs 1, 23, and 24, with matching server checks. See [player workflows and defaults](players.md#screens-and-workflow).
+
 ## Assets
 
 | Asset                             | Existing source                                                                             | Rebuilt location                       |
@@ -24,6 +26,7 @@ The Ending Games module ports the original Scheduled Games list, Create Game pre
 | GAME X logo                       | admin-portal/src/assets/gamex.png                                                           | resources/assets/legacy/gamex.png      |
 | Favicon                           | admin-portal/public/favicon.ico                                                             | public/favicon.ico                     |
 | Dashboard navigation icon         | Original NavbarLinks.vue URL: https://img.icons8.com/3d-fluency/94/null/combo-chart.png     | public/images/navigation/dashboard.png |
+| Player List navigation icon       | Original NavbarLinks.vue URL: https://img.icons8.com/3d-fluency/94/null/menu.png            | public/images/navigation/player-list.png |
 | Poppins Regular, Medium, SemiBold | Same font family used by admin-portal/public/index.html; official Google Fonts distribution | resources/assets/fonts/poppins/        |
 
 Logo and favicon bytes are copied unchanged. Poppins is bundled locally from the [Google Fonts Poppins distribution](https://github.com/google/fonts/tree/main/ofl/poppins), with its OFL license alongside the font files. Icons and fonts load locally in the rendered app.
@@ -33,3 +36,5 @@ Logo and favicon bytes are copied unchanged. Poppins is bundled locally from the
 Login screenshots were compared with a local render of the original Home.vue template, Vuetify 2, and original styles at 1440px, 820px, and 390px. The desktop and mobile sign-in card heights match the original.
 
 The browser suite exercises the single-form login, resend control, navigation drawer, account-menu logout, remembered mobile number, validation, and CSRF protection at those three widths using isolated test accounts and captured SMS. Visual captures remain in ignored `storage/app/visual-baselines/`.
+
+`tests/browser/players.spec.ts` also exercises player search/export, Other Details, separate-tab inspection, KYC verification/rejection, betting/account controls, fund-account verification, and activity tabs at the same widths. NDRP responses are mocked. Player captures use the names `<viewport>-players-list.png` and `<viewport>-player-details.png` in the same ignored directory.

@@ -68,3 +68,9 @@ Invalid or orphaned grants never create privileges. The original rows remain rec
 Back up the shared target database and this admin application's APP_KEY together before moving environments or changing mappings. The player portal has its own key; preserve both keys for their respective archives. Never regenerate the admin APP_KEY after an import.
 
 A corrected source record changes its checksum. Review the source/target differences before applying any intentional synchronization. This phase deliberately has no force-update or destructive rollback command. Do not delete mapped users to make a rerun pass, and do not run migrate:fresh, migrate:refresh, migrate:reset, or db:wipe against the shared database.
+
+## Related module migrations
+
+[Player management](players.md#database-migration) documents the supporting status snapshots, verification metadata, rejection reasons, banks/fund accounts, player logs, and player-related administrator history copied by `legacy:player-management`. It uses existing player identity mappings, retains quarantined links, and preserves shared wallet data. The guide includes setup, source-to-target tables, verified counts, rerun behavior, and queue/media requirements.
+
+[Ending games](ending-games.md) documents the separate game/card/bet/result/winner history import and its identity-linking requirements. Neither module import replaces the shared player-account import.
