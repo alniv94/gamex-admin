@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Services\Players\PlayerCashierQueries;
 use App\Services\Players\PlayerCashierWorkflow;
 use Carbon\CarbonImmutable;
@@ -10,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +21,7 @@ class PlayerCashierController extends Controller
 
     public function index(Request $request, string $kind): Response
     {
-        $this->permit($request, $kind === 'cashin' ? 2 : 3);
+        Gate::authorize($kind.'.view');
         $filters = $this->filters($request);
 
         return Inertia::render('players/Cashier', [
@@ -34,7 +34,7 @@ class PlayerCashierController extends Controller
 
     public function export(Request $request, string $kind): StreamedResponse
     {
-        $this->permit($request, $kind === 'cashin' ? 2 : 3);
+        Gate::authorize($kind.'.view');
         $query = $this->queries->filtered($kind, $this->filters($request));
 
         return response()->streamDownload(function () use ($query, $kind): void {
@@ -56,10 +56,8 @@ class PlayerCashierController extends Controller
 
     public function evaluate(Request $request, string $kind, int $cashier, string $action): RedirectResponse
     {
-        $this->permit($request, $kind === 'cashin' ? 2 : 3);
-        $permissions = $kind === 'cashin' ? ['verify' => 52, 'reject' => 52, 'approve' => 26, 'disapprove' => 27]
-            : ['verify' => 53, 'reject' => 53, 'approve' => 29, 'disapprove' => 30];
-        $this->permit($request, $permissions[$action]);
+        Gate::authorize($kind.'.view');
+        Gate::authorize($kind.'.'.($action === 'reject' ? 'verify' : $action));
         $request->validate([
             'expected' => ['required', Rule::in(['Pending', 'Verified'])],
             'remarks' => [Rule::requiredIf(in_array($action, ['reject', 'disapprove'], true)), 'nullable', 'string', 'max:300'],
@@ -72,8 +70,8 @@ class PlayerCashierController extends Controller
 
     public function manual(Request $request, string $kind): RedirectResponse
     {
-        $this->permit($request, $kind === 'cashin' ? 2 : 3);
-        $this->permit($request, $kind === 'cashin' ? 28 : 31);
+        Gate::authorize($kind.'.view');
+        Gate::authorize($kind.'.manual');
         $request->validate([
             'player_id' => ['required', 'integer', Rule::exists('players', 'id')->where('status', 'Active')],
             'amount' => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:99999999.99'],
@@ -89,8 +87,8 @@ class PlayerCashierController extends Controller
 
     public function players(Request $request, string $kind): JsonResponse
     {
-        $this->permit($request, $kind === 'cashin' ? 2 : 3);
-        $this->permit($request, $kind === 'cashin' ? 28 : 31);
+        Gate::authorize($kind.'.view');
+        Gate::authorize($kind.'.manual');
         $request->validate(['search' => ['required', 'string', 'min:3', 'max:100']]);
         $search = $request->string('search')->toString();
 
@@ -120,13 +118,6 @@ class PlayerCashierController extends Controller
         }
 
         return $filters;
-    }
-
-    private function permit(Request $request, int $permission): void
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->status === 'Active'
-            && $user->permissions()->where('admin_permissions.id', $permission)->exists(), 403);
     }
 
     private function displayDate(?string $date): string

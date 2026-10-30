@@ -15,8 +15,6 @@ use App\Models\EndingCard;
 use App\Models\EndingConfig;
 use App\Models\EndingGame;
 use App\Models\EndingGameResult;
-use App\Models\User;
-use App\Services\Ending\EndingAccess;
 use App\Services\Ending\EndingQueries;
 use App\Services\Ending\EndingWorkflow;
 use Carbon\CarbonImmutable;
@@ -24,17 +22,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EndingGameController extends Controller
 {
-    public function __construct(private EndingAccess $access, private EndingQueries $queries, private EndingWorkflow $workflow) {}
+    public function __construct(private EndingQueries $queries, private EndingWorkflow $workflow) {}
 
     public function index(Request $request): Response
     {
-        $this->permit($request, 17);
+        Gate::authorize('ending.games.view');
         $today = CarbonImmutable::now('Asia/Manila')->toDateString();
         $request->merge([
             'date_from' => $request->input('date_from', $today),
@@ -82,7 +81,7 @@ class EndingGameController extends Controller
 
     public function show(Request $request, EndingGame $game): Response
     {
-        $this->permit($request, 17);
+        Gate::authorize('ending.games.view');
         $request->validate(['card_id' => ['nullable', 'integer', 'min:1'], 'bet_amount_id' => ['nullable', 'integer', 'min:1']]);
         if ($request->filled('bet_amount_id')) {
             $game->betAmounts()->findOrFail($request->integer('bet_amount_id'));
@@ -111,7 +110,7 @@ class EndingGameController extends Controller
                     'team_b_score' => $result->team_b_score, 'created_at' => $result->created_at?->toIso8601String(),
                     'combination' => $result->slot?->slot,
                 ]),
-            'winners' => fn () => $this->access->allows($request->user(), 34)
+            'winners' => fn () => $request->user()->can('ending.winners.view')
                 ? $this->queries->winners($game->id)->orderBy('r.quarter_id')->orderBy('b.id')->paginate(25, ['*'], 'winners_page')->withQueryString()
                 : null,
             'logs' => fn () => $game->logs()->with('actor:id,name')->orderByDesc('created_at')->orderByDesc('id')
@@ -124,7 +123,7 @@ class EndingGameController extends Controller
 
     public function cardIndex(Request $request, EndingGame $game): Response
     {
-        $this->permit($request, 17);
+        Gate::authorize('ending.games.view');
         $filters = $request->validate([
             'bet_amount_id' => ['nullable', 'integer', 'min:1'],
             'card_id' => ['nullable', 'integer', 'min:1'],
@@ -149,7 +148,7 @@ class EndingGameController extends Controller
 
     public function history(Request $request): Response
     {
-        $this->permit($request, 17);
+        Gate::authorize('ending.games.view');
         $request->validate(['action' => ['nullable', 'string', 'max:100'], 'game_id' => ['nullable', 'integer', 'min:1']]);
         $logs = AdminEndingLegacyLog::query()->with('actor:id,name');
         if ($request->filled('action')) {
@@ -182,7 +181,7 @@ class EndingGameController extends Controller
 
     public function betting(Request $request, EndingGame $game): RedirectResponse
     {
-        $this->permit($request, 10);
+        Gate::authorize('ending.games.update');
         $request->validate(['enabled' => ['required', 'boolean']]);
         $this->workflow->betting($request, $game->id);
 
@@ -198,7 +197,7 @@ class EndingGameController extends Controller
 
     public function cardBetting(Request $request, EndingGame $game, EndingCard $card): RedirectResponse
     {
-        $this->permit($request, 12);
+        Gate::authorize('ending.cards.manage');
         $request->validate(['enabled' => ['required', 'boolean']]);
         $this->workflow->cardBetting($request, $game->id, $card->id);
 
@@ -207,7 +206,7 @@ class EndingGameController extends Controller
 
     public function subtractCards(Request $request, EndingGame $game, EndingBetAmount $betAmount): RedirectResponse
     {
-        $this->permit($request, 12);
+        Gate::authorize('ending.cards.manage');
         $request->validate(['quantity' => ['required', 'integer', 'between:1,1000']]);
         $this->workflow->subtractCards($request, $game->id, $betAmount->id);
 
@@ -230,7 +229,7 @@ class EndingGameController extends Controller
 
     public function winner(Request $request, EndingGame $game, string $action): RedirectResponse
     {
-        $this->permit($request, $action === 'approve' ? 9 : 8);
+        Gate::authorize($action === 'approve' ? 'ending.winners.approve' : 'ending.winners.verify');
         $request->validate(['bet_id' => ['required', 'integer', 'min:1'], 'quarter_id' => ['required', 'integer', 'between:1,4']]);
         $this->workflow->winner($request, $game->id, $action);
 
@@ -243,13 +242,6 @@ class EndingGameController extends Controller
         Inertia::flash('success', $message);
 
         return to_route('ending.games.show', ['game' => $gameId], 303);
-    }
-
-    private function permit(Request $request, int $permission): void
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-        $this->access->require($user, $permission);
     }
 
     /** @return array<string, mixed> */

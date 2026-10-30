@@ -2,6 +2,7 @@
 
 namespace App\Services\Players;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,11 +36,12 @@ class PlayerCashierWorkflow
     public function manual(Request $request, string $kind): void
     {
         $this->requireReady();
-        $approver = DB::table('users')->where('id', config('players.cashier_approval_admin_id'))->where('status', 'Active')->first();
-        if (! $approver || ! password_verify($request->string('approval_password')->toString(), $approver->password)) {
+        $approver = User::query()->where('id', config('players.cashier_approval_admin_id'))->first();
+        if (! $approver || ! $approver->can($kind.'.approve')
+            || ! password_verify($request->string('approval_password')->toString(), $approver->password)) {
             throw ValidationException::withMessages(['approval_password' => 'Incorrect approval password.']);
         }
-        DB::transaction(function () use ($request, $kind): void {
+        DB::transaction(function () use ($request, $kind, $approver): void {
             $player = DB::table('players')->where('id', $request->integer('player_id'))->lockForUpdate()->firstOrFail();
             $existing = DB::table('player_'.$kind)->where('request_key', $request->input('request_key'))->first();
             if ($existing) {
@@ -62,7 +64,7 @@ class PlayerCashierWorkflow
             [$before, $after] = $this->transfer((int) $player->id, $kind, $request->string('amount')->toString(), $id);
             $this->audit($request, (int) $player->id, 'manual_'.$kind,
                 ['cashier_id' => $id, 'wallet' => $before],
-                ['cashier_id' => $id, 'status' => 'Approved', 'wallet' => $after]);
+                ['cashier_id' => $id, 'status' => 'Approved', 'wallet' => $after, 'approver_id' => $approver->id]);
         }, 3);
     }
 

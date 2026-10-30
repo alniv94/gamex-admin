@@ -4,7 +4,8 @@ export interface AdminUser {
     mobile_number: string;
     email: string | null;
     status: string;
-    permissions: { id: number; name: string; module: string | null }[];
+    permissions: string[];
+    roles: string[];
 }
 export interface AdminPageProps {
     [key: string]: unknown;

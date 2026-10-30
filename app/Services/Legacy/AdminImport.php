@@ -3,11 +3,15 @@
 namespace App\Services\Legacy;
 
 use App\Models\AdminProfile;
+use App\Models\User;
+use App\Services\Auth\AdminPermissions;
 use App\Services\Auth\MobileNumber;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class AdminImport
 {
@@ -157,7 +161,8 @@ class AdminImport
         }
         foreach ($plan['permissions'] as $id => $permission) {
             $target = DB::table('admin_permissions')->where('id', $id)->first();
-            $pendingCatalog += $target ? 0 : 1;
+            $livePermission = Permission::query()->where('guard_name', 'web')->where('name', AdminPermissions::legacyName($id))->exists();
+            $pendingCatalog += $target && $livePermission ? 0 : 1;
             if ($target && (array) $target != $permission) {
                 throw new RuntimeException("Permission {$id} differs from the source. Review the change before importing.");
             }
@@ -185,43 +190,49 @@ class AdminImport
     /** @param array{accounts: array<int, array<string, mixed>>, permissions: array<int, array<string, mixed>>, warnings: int, exceptions: array<string, array<string, mixed>>, invalid_grants: int, duplicate_grants: int} $plan */
     public function execute(array $plan): void
     {
-        DB::transaction(function () use ($plan): void {
-            $this->inspect($plan);
-            foreach ($plan['exceptions'] as $key => $row) {
-                if (! DB::table('admin_legacy_exceptions')->where('id', $key)->exists()) {
-                    $payload = json_encode($row, JSON_THROW_ON_ERROR);
-                    DB::table('admin_legacy_exceptions')->insert([
-                        'id' => $key, 'reason' => 'Referenced administrator does not exist',
-                        'source_checksum' => hash('sha256', $payload),
-                        'payload' => Crypt::encryptString($payload), 'created_at' => now(),
+        try {
+            DB::transaction(function () use ($plan): void {
+                $this->inspect($plan);
+                foreach ($plan['exceptions'] as $key => $row) {
+                    if (! DB::table('admin_legacy_exceptions')->where('id', $key)->exists()) {
+                        $payload = json_encode($row, JSON_THROW_ON_ERROR);
+                        DB::table('admin_legacy_exceptions')->insert([
+                            'id' => $key, 'reason' => 'Referenced administrator does not exist',
+                            'source_checksum' => hash('sha256', $payload),
+                            'payload' => Crypt::encryptString($payload), 'created_at' => now(),
+                        ]);
+                    }
+                }
+                foreach ($plan['permissions'] as $permission) {
+                    if (! DB::table('admin_permissions')->where('id', $permission['id'])->exists()) {
+                        DB::table('admin_permissions')->insert($permission);
+                    }
+                    Permission::findOrCreate(AdminPermissions::legacyName($permission['id']), 'web');
+                }
+                foreach ($plan['accounts'] as $id => $account) {
+                    if (DB::table('admin_profiles')->where('legacy_admin_id', $id)->exists()) {
+                        continue;
+                    }
+                    // Query builder preserves the legacy hash exactly; no password mutator or rehash.
+                    DB::table('users')->insert($account['user']);
+                    DB::table('admin_profiles')->insert([
+                        ...$account['profile'],
+                        'legacy_payload' => Crypt::encryptString(json_encode($account['archive'], JSON_THROW_ON_ERROR)),
+                        'source_checksum' => $account['checksum'], 'created_at' => now(), 'updated_at' => now(),
                     ]);
+                    foreach ($account['permissions'] as $permission) {
+                        DB::table('admin_user_permissions')->insert(['user_id' => $id, 'permission_id' => $permission]);
+                    }
+                    User::query()->findOrFail($id)->givePermissionTo(array_map(AdminPermissions::legacyName(...), $account['permissions']));
                 }
-            }
-            foreach ($plan['permissions'] as $permission) {
-                if (! DB::table('admin_permissions')->where('id', $permission['id'])->exists()) {
-                    DB::table('admin_permissions')->insert($permission);
+                $verified = $this->inspect($plan);
+                if ($verified['new'] || $verified['pending_catalog'] || $verified['pending_archives']) {
+                    throw new RuntimeException('Post-import verification failed. The import was rolled back.');
                 }
-            }
-            foreach ($plan['accounts'] as $id => $account) {
-                if (DB::table('admin_profiles')->where('legacy_admin_id', $id)->exists()) {
-                    continue;
-                }
-                // Query builder preserves the legacy hash exactly; no password mutator or rehash.
-                DB::table('users')->insert($account['user']);
-                DB::table('admin_profiles')->insert([
-                    ...$account['profile'],
-                    'legacy_payload' => Crypt::encryptString(json_encode($account['archive'], JSON_THROW_ON_ERROR)),
-                    'source_checksum' => $account['checksum'], 'created_at' => now(), 'updated_at' => now(),
-                ]);
-                foreach ($account['permissions'] as $permission) {
-                    DB::table('admin_user_permissions')->insert(['user_id' => $id, 'permission_id' => $permission]);
-                }
-            }
-            $verified = $this->inspect($plan);
-            if ($verified['new'] || $verified['pending_catalog'] || $verified['pending_archives']) {
-                throw new RuntimeException('Post-import verification failed. The import was rolled back.');
-            }
-        });
+            });
+        } finally {
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        }
     }
 
     /** @param array<string, mixed> $account */
@@ -247,6 +258,12 @@ class AdminImport
             ->pluck('permission_id')->map(fn ($value) => (int) $value)->all();
         if ($actual !== $account['permissions']) {
             throw new RuntimeException("Administrator {$id} failed permission verification.");
+        }
+        $expectedNames = array_map(AdminPermissions::legacyName(...), $account['permissions']);
+        sort($expectedNames);
+        $effectiveNames = User::query()->findOrFail($id)->getAllPermissions()->pluck('name')->sort()->values()->all();
+        if ($effectiveNames !== $expectedNames) {
+            throw new RuntimeException("Administrator {$id} failed effective permission verification.");
         }
     }
 }

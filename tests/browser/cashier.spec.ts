@@ -1,5 +1,5 @@
 import { test, expect as baseExpect } from '@playwright/test';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const expect = baseExpect.configure({ timeout: 15000 });
@@ -14,6 +14,10 @@ test('cashier pages support review, verification, approval, filters and export',
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/login');
     await page.getByLabel('Mobile Number', { exact: true }).fill(`91${index + 6}1234567`);
+    const notificationFolder = path.resolve('storage/app/private/browser-notifications');
+    const previousCaptures = new Set(
+        existsSync(notificationFolder) ? readdirSync(notificationFolder) : [],
+    );
     await page.getByRole('button', { name: 'Send OTP', exact: true }).click();
     await expect(
         page.getByText(
@@ -21,7 +25,8 @@ test('cashier pages support review, verification, approval, filters and export',
             { exact: true },
         ),
     ).toBeVisible();
-    const capture = readdirSync(path.resolve('storage/app/private/browser-notifications'))
+    const capture = readdirSync(notificationFolder)
+        .filter((file) => !previousCaptures.has(file))
         .map(
             (file) =>
                 JSON.parse(

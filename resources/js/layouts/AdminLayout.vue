@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePermissions } from '@/composables/usePermissions';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import { index as cashierIndex } from '@/actions/App/Http/Controllers/PlayerCashierController';
@@ -14,31 +15,35 @@ import { useAdminApi } from '../composables/useAdminApi';
 import type { AdminPageProps } from '../types';
 
 const page = usePage<AdminPageProps>();
+const { can, canAny } = usePermissions();
 const user = computed(() => page.props.auth.user);
 const endingNavigation = computed(() =>
     [
         {
             title: 'Scheduled Games',
             icon: 'scheduled-games',
-            permission: 17,
+            permission: 'ending.games.view',
             route: EndingGameController.index(),
         },
-        { title: 'Teams', icon: 'teams', permission: 18, route: EndingCatalogController.teams() },
+        {
+            title: 'Teams',
+            icon: 'teams',
+            permission: 'ending.teams.manage',
+            route: EndingCatalogController.teams(),
+        },
         {
             title: 'Leagues',
             icon: 'leagues',
-            permission: 19,
+            permission: 'ending.leagues.manage',
             route: EndingCatalogController.leagues(),
         },
         {
             title: 'Config',
             icon: 'config',
-            permission: 20,
+            permission: 'ending.config.manage',
             route: EndingCatalogController.configuration(),
         },
-    ].filter((item) =>
-        user.value?.permissions.some((permission) => permission.id === item.permission),
-    ),
+    ].filter((item) => can(item.permission)),
 );
 const firstName = computed(() => user.value?.name?.trim().split(/\s+/)[0] || 'Administrator');
 const { width } = useDisplay();
@@ -92,7 +97,7 @@ async function logout() {
                     <v-list-item-title>Dashboard</v-list-item-title>
                 </v-list-item>
                 <v-list-group
-                    v-if="user?.permissions.some((permission) => [1, 2, 3].includes(permission.id))"
+                    v-if="canAny(['players.view', 'cashin.view', 'cashout.view'])"
                     value="players"
                 >
                     <template #activator="{ props }"
@@ -111,7 +116,7 @@ async function logout() {
                         ></template
                     >
                     <v-list-item
-                        v-if="user?.permissions.some((permission) => permission.id === 1)"
+                        v-if="can('players.view')"
                         :href="playerList.url()"
                         color="primary"
                         :active="
@@ -129,7 +134,7 @@ async function logout() {
                         ><v-list-item-title>Player List</v-list-item-title></v-list-item
                     >
                     <v-list-item
-                        v-if="user?.permissions.some((permission) => permission.id === 1)"
+                        v-if="can('players.view')"
                         :href="withdrawalAccounts.url()"
                         color="primary"
                         :active="page.url.split('?')[0] === withdrawalAccounts.url()"
@@ -154,20 +159,16 @@ async function logout() {
                                     kind: 'cashin',
                                     title: 'Cash In',
                                     icon: 'mdi-cash-plus',
-                                    permission: 2,
+                                    permission: 'cashin.view',
                                 },
                                 {
                                     kind: 'cashout',
                                     title: 'Cash Out',
                                     icon: 'mdi-cash-minus',
-                                    permission: 3,
+                                    permission: 'cashout.view',
                                 },
                             ] as const
-                        ).filter((item) =>
-                            user?.permissions.some(
-                                (permission) => permission.id === item.permission,
-                            ),
-                        )"
+                        ).filter((item) => can(item.permission))"
                         :key="item.kind"
                         :href="cashierIndex.url(item.kind)"
                         color="primary"

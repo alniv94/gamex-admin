@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,9 @@ class EnsureActiveAdmin
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+        if ($user instanceof User) {
+            $user->unsetRelation('profile')->unsetRelation('permissions')->unsetRelation('roles');
+        }
         if ($user && ($user->status !== 'Active' || ! $user->profile
             || $request->session()->get('admin_version') !== $user->profile->session_version)) {
             Auth::guard('web')->logout();

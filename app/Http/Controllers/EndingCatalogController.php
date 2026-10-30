@@ -10,23 +10,22 @@ use App\Models\EndingPerQuarterBetAmountConfig;
 use App\Models\EndingRecord;
 use App\Models\EndingTeam;
 use App\Models\EndingTraditionalBetAmountConfig;
-use App\Models\User;
-use App\Services\Ending\EndingAccess;
 use App\Services\Ending\EndingWorkflow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EndingCatalogController extends Controller
 {
-    public function __construct(private EndingAccess $access, private EndingWorkflow $workflow) {}
+    public function __construct(private EndingWorkflow $workflow) {}
 
     public function teams(Request $request): Response
     {
-        $this->permit($request, 18);
+        Gate::authorize('ending.teams.manage');
         $filters = $this->filters($request);
         $teams = EndingTeam::query()->with('league:id,league');
         if ($request->filled('search')) {
@@ -55,7 +54,7 @@ class EndingCatalogController extends Controller
 
     public function leagues(Request $request): Response
     {
-        $this->permit($request, 19);
+        Gate::authorize('ending.leagues.manage');
         $filters = $this->filters($request);
         $leagues = EndingLeague::query();
         if ($request->filled('search')) {
@@ -80,7 +79,7 @@ class EndingCatalogController extends Controller
 
     public function configuration(Request $request): Response
     {
-        $this->permit($request, 20);
+        Gate::authorize('ending.config.manage');
         $presets = [];
         foreach ([1 => EndingTraditionalBetAmountConfig::class, 2 => EndingPerQuarterBetAmountConfig::class] as $type => $model) {
             foreach ($model::query()->orderBy('amount')->get(['id', 'amount', 'card_quantity', 'status']) as $preset) {
@@ -110,7 +109,7 @@ class EndingCatalogController extends Controller
 
     public function storePreset(Request $request): RedirectResponse
     {
-        $this->permit($request, 20);
+        Gate::authorize('ending.config.manage');
         $request->validate(['bet_type_id' => ['required', 'integer', Rule::in([1, 2])]]);
 
         return $this->savePreset($request, $request->integer('bet_type_id'));
@@ -118,14 +117,14 @@ class EndingCatalogController extends Controller
 
     public function updatePreset(Request $request, int $type, int $preset): RedirectResponse
     {
-        $this->permit($request, 20);
+        Gate::authorize('ending.config.manage');
 
         return $this->savePreset($request, $type, $preset);
     }
 
     public function deletePreset(Request $request, int $type, int $preset): RedirectResponse
     {
-        $this->permit($request, 20);
+        Gate::authorize('ending.config.manage');
         $this->workflow->write(null, function () use ($request, $type, $preset): void {
             $record = $this->presetModel($type)::query()->lockForUpdate()->findOrFail($preset);
             $before = $record->attributesToArray();
@@ -138,7 +137,7 @@ class EndingCatalogController extends Controller
 
     private function saveTeam(Request $request, EndingTeam $team): RedirectResponse
     {
-        $this->permit($request, 18);
+        Gate::authorize('ending.teams.manage');
         $this->workflow->write(null, function () use ($request, $team): void {
             if ($team->exists) {
                 $team = EndingTeam::query()->lockForUpdate()->findOrFail($team->id);
@@ -158,7 +157,7 @@ class EndingCatalogController extends Controller
 
     private function saveLeague(Request $request, EndingLeague $league): RedirectResponse
     {
-        $this->permit($request, 19);
+        Gate::authorize('ending.leagues.manage');
         $this->workflow->write(null, function () use ($request, $league): void {
             if ($league->exists) {
                 $league = EndingLeague::query()->lockForUpdate()->findOrFail($league->id);
@@ -177,7 +176,7 @@ class EndingCatalogController extends Controller
 
     private function saveConfig(Request $request, EndingConfig $config): RedirectResponse
     {
-        $this->permit($request, 20);
+        Gate::authorize('ending.config.manage');
         $this->workflow->write(null, function () use ($request, $config): void {
             if ($config->exists) {
                 $config = EndingConfig::query()->lockForUpdate()->findOrFail($config->id);
@@ -254,13 +253,6 @@ class EndingCatalogController extends Controller
     private function ready(): bool
     {
         return AdminEndingImport::query()->where('source', config('ending.legacy_source'))->exists();
-    }
-
-    private function permit(Request $request, int $permission): void
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-        $this->access->require($user, $permission);
     }
 
     private function success(string $route, string $message): RedirectResponse

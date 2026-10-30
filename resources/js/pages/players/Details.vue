@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { usePermissions } from '@/composables/usePermissions';
 import { verify, reject, setting, fund } from '@/actions/App/Http/Controllers/PlayerController';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import PlayerShell from '../../components/players/PlayerShell.vue';
 import PlayerStatus from '../../components/players/PlayerStatus.vue';
 import NdrpData from '../../components/players/NdrpData.vue';
 import PlayerActivity from '../../components/players/PlayerActivity.vue';
-import type { AdminPageProps } from '../../types';
 import type { PageResult } from '../../types/ending';
 import type { PlayerDetails, FundAccount, PlayerActivity as Activity } from '../../types/players';
 import { playerDate, playerMoney } from '../../types/players';
@@ -17,9 +17,9 @@ const props = defineProps<{
     activity: PageResult<Activity>;
     filters: Record<string, string>;
 }>();
-const page = usePage<AdminPageProps>();
-const canVerify = computed(() => page.props.auth.user?.permissions.some((p) => p.id === 23));
-const canSet = computed(() => page.props.auth.user?.permissions.some((p) => p.id === 24));
+const { can } = usePermissions();
+const canVerify = computed(() => can('players.verify'));
+const canSet = computed(() => can('players.settings.update'));
 const canEvaluate = computed(
     () => canVerify.value && ['Files Submitted', 'Pending'].includes(props.player.account_verified),
 );

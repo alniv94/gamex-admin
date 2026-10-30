@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\PermissionRegistrar;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,9 +24,13 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
+    public function boot(PermissionRegistrar $permissions): void
     {
         $this->configureDefaults();
+
+        // Account eligibility must be checked before Spatie can grant an ability.
+        Gate::before(fn (User $user): ?bool => $user->status !== 'Active' || ! $user->profile ? false : null);
+        $permissions->registerPermissions(Gate::getFacadeRoot());
     }
 
     /**

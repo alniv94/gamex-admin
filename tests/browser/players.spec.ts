@@ -1,5 +1,5 @@
 import { test, expect as baseExpect } from '@playwright/test';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const expect = baseExpect.configure({ timeout: 15000 });
@@ -40,6 +40,10 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     );
     await page.goto('/login');
     await page.getByLabel('Mobile Number', { exact: true }).fill(`91${loginIndex}1234567`);
+    const notificationFolder = path.resolve('storage/app/private/browser-notifications');
+    const previousCaptures = new Set(
+        existsSync(notificationFolder) ? readdirSync(notificationFolder) : [],
+    );
     await page.getByRole('button', { name: 'Send OTP', exact: true }).click();
     await expect(
         page.getByText(
@@ -47,15 +51,17 @@ test('player list, filters, export, verification, controls, funds and logs at ea
             { exact: true },
         ),
     ).toBeVisible();
-    const captures = readdirSync(path.resolve('storage/app/private/browser-notifications')).map(
-        (file) =>
-            JSON.parse(
-                readFileSync(
-                    path.resolve('storage/app/private/browser-notifications', file),
-                    'utf8',
-                ),
-            ) as { recipient: string; message: string },
-    );
+    const captures = readdirSync(notificationFolder)
+        .filter((file) => !previousCaptures.has(file))
+        .map(
+            (file) =>
+                JSON.parse(
+                    readFileSync(
+                        path.resolve('storage/app/private/browser-notifications', file),
+                        'utf8',
+                    ),
+                ) as { recipient: string; message: string },
+        );
     const capture = captures.find((record) => record.recipient === `+6391${loginIndex}1234567`)!;
     await page.getByLabel('OTP', { exact: true }).fill(capture.message.match(/\b([0-9]{6})\b/)![1]);
     await page.getByRole('button', { name: 'Sign In', exact: true }).click();

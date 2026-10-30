@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
-use App\Services\Ending\EndingAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateEndingCardsRequest extends FormRequest
@@ -11,11 +9,9 @@ class CreateEndingCardsRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
-    public function authorize(EndingAccess $access): bool
+    public function authorize(): bool
     {
-        $user = $this->user();
-
-        return $user instanceof User && $access->allows($user, 12);
+        return $this->user()?->can('ending.cards.manage') ?? false;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 use App\Models\AdminProfile;
 use App\Models\User;
+use App\Services\Auth\AdminPermissions;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
@@ -31,9 +32,6 @@ if (DB::connection()->getDriverName() !== 'sqlite' || str_replace('\\', '/', DB:
 }
 Artisan::call('migrate', ['--force' => true]);
 Storage::disk('local')->deleteDirectory('browser-notifications');
-foreach ([1, 23, 24, 17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
-    DB::table('admin_permissions')->insert(['id' => $permission, 'name' => 'Test permission '.$permission, 'module_order' => $permission]);
-}
 $playerFixture = new class
 {
     use PlayerFixtures;
@@ -50,9 +48,6 @@ Schema::table('player_wallet_transactions', function (Blueprint $table): void {
 });
 DB::table('player_wallet_transaction_types')->insert(['id' => 2, 'wallet_transaction_type' => 'Withdraw']);
 DB::table('admin_player_cashier_imports')->insert(['source' => config('players.legacy_source'), 'report' => '{}', 'verified_at' => now()]);
-foreach ([2, 3, 26, 27, 28, 29, 30, 31, 52, 53] as $permission) {
-    DB::table('admin_permissions')->insert(['id' => $permission, 'name' => 'Test permission '.$permission, 'module_order' => $permission]);
-}
 for ($index = 1; $index <= 3; $index++) {
     $playerId = 2000 + $index;
     DB::table('players')->insert(['id' => $playerId, 'name' => 'Cashier Player '.$index, 'mobile_number' => '+63919988888'.$index, 'status' => 'Active', 'cashin' => 'Enabled', 'cashout' => 'Enabled']);
@@ -102,7 +97,7 @@ for ($i = 1; $i <= 6; $i++) {
         'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64),
     ]);
     foreach ([1, 23, 24, 17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
-        DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
+        $user->givePermissionTo(AdminPermissions::legacyName($permission));
     }
     DB::table('ending_games')->insert(['id' => 100 + $i, 'team_a' => 1, 'team_b' => 2, 'schedule' => now()->subHour(), 'created_at' => now()]);
     DB::table('ending_bet_amounts')->insert(['id' => 200 + $i, 'game_id' => 100 + $i, 'bet_type_id' => 2, 'amount' => '15.00']);
@@ -120,7 +115,7 @@ for ($index = 7; $index <= 9; $index++) {
     $user = User::factory()->create(['name' => 'Player Test Administrator '.$index, 'mobile_number' => '+6391'.$index.'1234567', 'email' => 'player-admin'.$index.'@example.test', 'status' => 'Active']);
     AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64)]);
     foreach ([1, 23, 24, 2, 3, 26, 27, 28, 29, 30, 31, 52, 53] as $permission) {
-        DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
+        $user->givePermissionTo(AdminPermissions::legacyName($permission));
     }
 }
 echo 'Isolated browser fixtures ready.'.PHP_EOL;

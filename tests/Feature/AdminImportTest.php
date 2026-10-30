@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\AdminProfile;
+use App\Models\User;
 use App\Services\Legacy\AdminImport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PDO;
 use RuntimeException;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AdminImportTest extends TestCase
@@ -70,6 +72,8 @@ class AdminImportTest extends TestCase
         $this->assertArrayNotHasKey('login_key', $profile->legacy_payload['user']);
         $this->assertStringNotContainsString('shared@example.test', $profile->getRawOriginal('legacy_payload'));
         $this->assertDatabaseCount('admin_user_permissions', 3);
+        $this->assertSame(['cashin.view', 'players.view'], User::findOrFail(7)->getAllPermissions()->pluck('name')->sort()->values()->all());
+        $this->assertDatabaseCount('admin_model_permissions', 3);
         $import->execute($import->plan());
         $this->assertDatabaseCount('users', 2);
         $this->assertSame(2, $import->inspect($import->plan())['existing']);
@@ -119,6 +123,43 @@ class AdminImportTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('read-only');
         DB::connection('legacy')->table('admin_users')->where('id', 7)->update(['is_active' => 'Inactive']);
+    }
+
+    public function test_verifier_detects_effective_permission_drift_even_when_legacy_records_match(): void
+    {
+        $import = app(AdminImport::class);
+        $import->execute($import->plan());
+        User::findOrFail(7)->revokePermissionTo('cashin.view');
+
+        $this->artisan('legacy:verify-admins')->assertFailed();
+        $this->assertDatabaseCount('admin_user_permissions', 3);
+    }
+
+    public function test_verifier_accepts_equivalent_roles_and_detects_extra_role_permissions(): void
+    {
+        $import = app(AdminImport::class);
+        $import->execute($import->plan());
+        $user = User::findOrFail(7);
+        $role = Role::create(['name' => 'Imported Access', 'guard_name' => 'web']);
+        $role->givePermissionTo(['players.view', 'cashin.view']);
+        $user->assignRole($role);
+        $user->syncPermissions([]);
+
+        $this->artisan('legacy:verify-admins')->assertSuccessful();
+        $role->givePermissionTo('cashout.approve');
+        $this->artisan('legacy:verify-admins')->assertFailed();
+    }
+
+    public function test_import_preserves_unmapped_permissions_without_assigning_legacy_roles(): void
+    {
+        $this->source->exec("INSERT INTO admin_access VALUES (91, 'Future module', 91, 'Future')");
+        $this->source->exec('INSERT INTO admin_user_access VALUES (4, 7, 91)');
+        $import = app(AdminImport::class);
+        $import->execute($import->plan());
+
+        $this->assertTrue(User::findOrFail(7)->can('legacy.91'));
+        $this->assertDatabaseCount('admin_model_roles', 0);
+        $this->artisan('legacy:verify-admins')->assertSuccessful();
     }
 
     public function test_invalid_duplicate_and_orphaned_grants_are_preserved_without_granting_access(): void

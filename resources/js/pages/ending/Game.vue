@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePermissions } from '@/composables/usePermissions';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
@@ -42,7 +43,7 @@ const props = defineProps<{
     cardAmountFilter: number | null;
 }>();
 const page = usePage<AdminPageProps>();
-const can = (id: number) => page.props.auth.user?.permissions.some((p) => p.id === id) || false;
+const { can } = usePermissions();
 const tab = ref('results');
 const edit = ref(false);
 const message = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
@@ -314,7 +315,7 @@ function viewCard(card: GameCard) {
                             <span class="ending-overview-id">Game #{{ game.id }}</span>
                         </div>
                         <v-btn
-                            v-if="can(10) && scheduled"
+                            v-if="can('ending.games.update') && scheduled"
                             variant="outlined"
                             color="secondary"
                             size="small"
@@ -385,7 +386,7 @@ function viewCard(card: GameCard) {
                                 Control whether players can place bets on this game.
                             </p>
                             <v-btn
-                                v-if="can(10)"
+                                v-if="can('ending.games.update')"
                                 variant="flat"
                                 :color="game.betting === 'Enabled' ? '#a85b00' : '#23834b'"
                                 :prepend-icon="
@@ -422,7 +423,7 @@ function viewCard(card: GameCard) {
                                 Enter official scores and record the winning combinations.
                             </p>
                             <v-btn
-                                v-if="can(11)"
+                                v-if="can('ending.results.manage')"
                                 variant="flat"
                                 color="#007fae"
                                 prepend-icon="mdi-plus"
@@ -493,7 +494,7 @@ function viewCard(card: GameCard) {
                             title="View all cards (opens in a new tab)"
                             >View All Cards</v-btn
                         ><v-btn
-                            v-if="can(12)"
+                            v-if="can('ending.cards.manage')"
                             variant="flat"
                             color="primary"
                             prepend-icon="mdi-plus"
@@ -524,7 +525,7 @@ function viewCard(card: GameCard) {
                             <td>{{ amount.exceeded_cards }}</td>
                             <td class="text-center text-no-wrap">
                                 <v-btn
-                                    v-if="can(12)"
+                                    v-if="can('ending.cards.manage')"
                                     icon="mdi-plus-box-multiple-outline"
                                     color="success"
                                     variant="text"
@@ -535,7 +536,7 @@ function viewCard(card: GameCard) {
                                     @click="openCards(amount)"
                                 />
                                 <v-btn
-                                    v-if="can(12)"
+                                    v-if="can('ending.cards.manage')"
                                     icon="mdi-minus-box-multiple-outline"
                                     color="#a85b00"
                                     variant="text"
@@ -605,7 +606,7 @@ function viewCard(card: GameCard) {
                                 </td>
                                 <td>
                                     <v-btn
-                                        v-if="can(11)"
+                                        v-if="can('ending.results.manage')"
                                         variant="text"
                                         size="small"
                                         color="primary"
@@ -684,7 +685,7 @@ function viewCard(card: GameCard) {
                                         @click="viewCard(card)"
                                         >View Bets</v-btn
                                     ><v-btn
-                                        v-if="can(12) && scheduled && !card.bets"
+                                        v-if="can('ending.cards.manage') && scheduled && !card.bets"
                                         variant="text"
                                         size="small"
                                         :disabled="busy"
@@ -765,7 +766,7 @@ function viewCard(card: GameCard) {
                                 <td>{{ winner.prize_released || 'No' }}</td>
                                 <td class="text-no-wrap">
                                     <v-btn
-                                        v-if="!winner.winner_id && can(8)"
+                                        v-if="!winner.winner_id && can('ending.winners.verify')"
                                         variant="text"
                                         color="primary"
                                         size="small"
@@ -774,7 +775,7 @@ function viewCard(card: GameCard) {
                                         >Verify</v-btn
                                     ><template v-if="winner.winner_status_id === 1"
                                         ><v-btn
-                                            v-if="can(9)"
+                                            v-if="can('ending.winners.approve')"
                                             variant="text"
                                             color="success"
                                             size="small"
@@ -784,7 +785,10 @@ function viewCard(card: GameCard) {
                                             @click="confirmWinner(winner, 'approve')"
                                             >Approve & Declare</v-btn
                                         ><v-btn
-                                            v-if="can(8) && winner.prize_released !== 'Yes'"
+                                            v-if="
+                                                can('ending.winners.verify') &&
+                                                winner.prize_released !== 'Yes'
+                                            "
                                             variant="text"
                                             size="small"
                                             :disabled="busy"

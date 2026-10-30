@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePermissions } from '@/composables/usePermissions';
 import {
     evaluate,
     exportMethod as exportCashier,
@@ -25,11 +26,10 @@ const props = defineProps<{
     today: string;
 }>();
 const page = usePage<AdminPageProps>();
+const { can } = usePermissions();
 const api = useAdminApi();
 const title = computed(() => (props.kind === 'cashin' ? 'Cash In' : 'Cash Out'));
-const can = (permission: number) =>
-    page.props.auth.user?.permissions.some((item) => item.id === permission) ?? false;
-const canManual = computed(() => can(props.kind === 'cashin' ? 28 : 31));
+const canManual = computed(() => can(props.kind === 'cashin' ? 'cashin.manual' : 'cashout.manual'));
 const loading = ref(false);
 const form = reactive({
     search: '',
@@ -120,18 +120,18 @@ type Decision = 'verify' | 'reject' | 'approve' | 'disapprove';
 const confirmAction = ref<Decision | null>(null);
 const actions = computed(() => {
     if (!selected.value?.player_id) return [];
-    const options: { action: Decision; label: string; permission: number }[] =
+    const options: { action: Decision; label: string; permission: string }[] =
         selected.value.status === 'Pending'
             ? [
                   {
                       action: 'verify',
                       label: 'Verify',
-                      permission: props.kind === 'cashin' ? 52 : 53,
+                      permission: props.kind === 'cashin' ? 'cashin.verify' : 'cashout.verify',
                   },
                   {
                       action: 'reject',
                       label: 'Reject',
-                      permission: props.kind === 'cashin' ? 52 : 53,
+                      permission: props.kind === 'cashin' ? 'cashin.verify' : 'cashout.verify',
                   },
               ]
             : selected.value.status === 'Verified'
@@ -139,12 +139,13 @@ const actions = computed(() => {
                     {
                         action: 'approve',
                         label: 'Approve',
-                        permission: props.kind === 'cashin' ? 26 : 29,
+                        permission: props.kind === 'cashin' ? 'cashin.approve' : 'cashout.approve',
                     },
                     {
                         action: 'disapprove',
                         label: 'Disapprove',
-                        permission: props.kind === 'cashin' ? 27 : 30,
+                        permission:
+                            props.kind === 'cashin' ? 'cashin.disapprove' : 'cashout.disapprove',
                     },
                 ]
               : [];
@@ -485,7 +486,7 @@ onBeforeUnmount(() => {
                             <td>Player</td>
                             <td>
                                 <Link
-                                    v-if="selected.player_id && can(1)"
+                                    v-if="selected.player_id && can('players.view')"
                                     :href="show(selected.player_id)"
                                     >{{ selected.player_name }}</Link
                                 ><template v-else>{{

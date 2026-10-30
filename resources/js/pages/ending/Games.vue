@@ -1,4 +1,5 @@
 ﻿<script setup lang="ts">
+import { usePermissions } from '@/composables/usePermissions';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { router, usePage, Link } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
@@ -21,7 +22,8 @@ const props = defineProps<{
     migrationReady: boolean;
 }>();
 const page = usePage<AdminPageProps>();
-const canCreate = page.props.auth.user?.permissions.some((p) => p.id === 32);
+const { can } = usePermissions();
+const canCreate = computed(() => can('ending.games.create'));
 const form = reactive({
     search: props.filters.search || '',
     league_id: Number(props.filters.league_id) || null,

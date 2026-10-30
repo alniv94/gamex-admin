@@ -4,9 +4,11 @@ namespace Tests\Support;
 
 use App\Models\AdminProfile;
 use App\Models\User;
+use App\Services\Auth\AdminPermissions;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
 
 trait EndingFixtures
 {
@@ -59,8 +61,8 @@ trait EndingFixtures
         $user = User::factory()->create(['status' => 'Active']);
         AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'source_checksum' => str_repeat('a', 64), 'legacy_payload' => ['fixture' => true]]);
         foreach ($permissions as $id) {
-            DB::table('admin_permissions')->insertOrIgnore(['id' => $id, 'name' => "Permission $id", 'module_order' => $id]);
-            DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $id]);
+            Permission::findOrCreate(AdminPermissions::legacyName($id), 'web');
+            $user->givePermissionTo(AdminPermissions::legacyName($id));
         }
         $this->actingAs($user)->withSession(['admin_version' => $user->profile->session_version]);
 
