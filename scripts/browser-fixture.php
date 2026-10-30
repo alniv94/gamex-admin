@@ -3,8 +3,10 @@
 use App\Models\AdminProfile;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\PlayerFixtures;
 
@@ -42,6 +44,24 @@ $playerFixture = new class
     }
 };
 $playerFixture->seed();
+Schema::table('player_wallet_transactions', function (Blueprint $table): void {
+    $table->unsignedBigInteger('player_wallet_id')->nullable();
+    $table->integer('reference_id')->default(0);
+});
+DB::table('player_wallet_transaction_types')->insert(['id' => 2, 'wallet_transaction_type' => 'Withdraw']);
+DB::table('admin_player_cashier_imports')->insert(['source' => config('players.legacy_source'), 'report' => '{}', 'verified_at' => now()]);
+foreach ([2, 3, 26, 27, 28, 29, 30, 31, 52, 53] as $permission) {
+    DB::table('admin_permissions')->insert(['id' => $permission, 'name' => 'Test permission '.$permission, 'module_order' => $permission]);
+}
+for ($index = 1; $index <= 3; $index++) {
+    $playerId = 2000 + $index;
+    DB::table('players')->insert(['id' => $playerId, 'name' => 'Cashier Player '.$index, 'mobile_number' => '+63919988888'.$index, 'status' => 'Active', 'cashin' => 'Enabled', 'cashout' => 'Enabled']);
+    DB::table('player_profiles')->insert(['player_id' => $playerId, 'kyc_status' => 'Verified']);
+    DB::table('player_wallet')->insert(['player_id' => $playerId, 'actual_amount' => '123.45']);
+    foreach (['cashin', 'cashout'] as $kind) {
+        DB::table('player_'.$kind)->insert(['id' => 900 + $index, 'player_id' => $playerId, 'bank_id' => 1, 'amount' => '25.10', 'created_at' => '2026-10-15 16:00:00']);
+    }
+}
 DB::table('players')->where('id', 9)->update(['name' => 'Browser Test Player']);
 for ($index = 1; $index <= 3; $index++) {
     foreach ([1000, 1100] as $offset) {
@@ -99,7 +119,7 @@ for ($i = 1; $i <= 6; $i++) {
 for ($index = 7; $index <= 9; $index++) {
     $user = User::factory()->create(['name' => 'Player Test Administrator '.$index, 'mobile_number' => '+6391'.$index.'1234567', 'email' => 'player-admin'.$index.'@example.test', 'status' => 'Active']);
     AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64)]);
-    foreach ([1, 23, 24] as $permission) {
+    foreach ([1, 23, 24, 2, 3, 26, 27, 28, 29, 30, 31, 52, 53] as $permission) {
         DB::table('admin_user_permissions')->insert(['user_id' => $user->id, 'permission_id' => $permission]);
     }
 }

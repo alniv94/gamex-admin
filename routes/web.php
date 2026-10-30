@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
+use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,11 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/players/{kind}', [PlayerCashierController::class, 'index'])->whereIn('kind', ['cashin', 'cashout'])->name('players.cashier.index');
+    Route::get('/players/{kind}/export', [PlayerCashierController::class, 'export'])->whereIn('kind', ['cashin', 'cashout'])->name('players.cashier.export');
+    Route::get('/players/{kind}/players', [PlayerCashierController::class, 'players'])->whereIn('kind', ['cashin', 'cashout'])->middleware('throttle:30,1')->name('players.cashier.players');
+    Route::post('/players/{kind}/manual', [PlayerCashierController::class, 'manual'])->whereIn('kind', ['cashin', 'cashout'])->middleware('throttle:10,1')->name('players.cashier.manual');
+    Route::post('/players/{kind}/{cashier}/{action}', [PlayerCashierController::class, 'evaluate'])->whereIn('kind', ['cashin', 'cashout'])->whereNumber('cashier')->whereIn('action', ['verify', 'reject', 'approve', 'disapprove'])->name('players.cashier.evaluate');
     Route::get('/players/list', [PlayerController::class, 'index'])->name('players.index');
     Route::get('/players/withdrawal_accounts', [PlayerController::class, 'withdrawalAccounts'])->name('players.withdrawal_accounts');
     Route::get('/players/export', [PlayerController::class, 'export'])->name('players.export');

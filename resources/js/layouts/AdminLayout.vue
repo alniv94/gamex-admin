@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
+import { index as cashierIndex } from '@/actions/App/Http/Controllers/PlayerCashierController';
 import {
     index as playerList,
     withdrawalAccounts,
@@ -91,7 +92,7 @@ async function logout() {
                     <v-list-item-title>Dashboard</v-list-item-title>
                 </v-list-item>
                 <v-list-group
-                    v-if="user?.permissions.some((permission) => permission.id === 1)"
+                    v-if="user?.permissions.some((permission) => [1, 2, 3].includes(permission.id))"
                     value="players"
                 >
                     <template #activator="{ props }"
@@ -110,6 +111,7 @@ async function logout() {
                         ></template
                     >
                     <v-list-item
+                        v-if="user?.permissions.some((permission) => permission.id === 1)"
                         :href="playerList.url()"
                         color="primary"
                         :active="
@@ -127,6 +129,7 @@ async function logout() {
                         ><v-list-item-title>Player List</v-list-item-title></v-list-item
                     >
                     <v-list-item
+                        v-if="user?.permissions.some((permission) => permission.id === 1)"
                         :href="withdrawalAccounts.url()"
                         color="primary"
                         :active="page.url.split('?')[0] === withdrawalAccounts.url()"
@@ -143,6 +146,41 @@ async function logout() {
                             />
                         </template>
                         <v-list-item-title>Player Withdrawal Accounts</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item
+                        v-for="item in (
+                            [
+                                {
+                                    kind: 'cashin',
+                                    title: 'Cash In',
+                                    icon: 'mdi-cash-plus',
+                                    permission: 2,
+                                },
+                                {
+                                    kind: 'cashout',
+                                    title: 'Cash Out',
+                                    icon: 'mdi-cash-minus',
+                                    permission: 3,
+                                },
+                            ] as const
+                        ).filter((item) =>
+                            user?.permissions.some(
+                                (permission) => permission.id === item.permission,
+                            ),
+                        )"
+                        :key="item.kind"
+                        :href="cashierIndex.url(item.kind)"
+                        color="primary"
+                        :active="page.url.split('?')[0] === cashierIndex.url(item.kind)"
+                        @click.prevent="
+                            router.visit(cashierIndex(item.kind));
+                            drawer = width >= 1264;
+                        "
+                    >
+                        <template #prepend
+                            ><v-icon :icon="item.icon" color="primary" class="navigation-icon"
+                        /></template>
+                        <v-list-item-title>{{ item.title }}</v-list-item-title>
                     </v-list-item>
                 </v-list-group>
                 <v-list-subheader v-if="endingNavigation.length" class="mt-3 font-weight-bold"
