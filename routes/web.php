@@ -17,6 +17,7 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/players/list', [PlayerController::class, 'index'])->name('players.index');
+    Route::get('/players/withdrawal_accounts', [PlayerController::class, 'withdrawalAccounts'])->name('players.withdrawal_accounts');
     Route::get('/players/export', [PlayerController::class, 'export'])->name('players.export');
     Route::get('/player/{player}', [PlayerController::class, 'show'])->whereNumber('player')->name('players.show');
     Route::get('/player/{player}/duplicates', [PlayerController::class, 'duplicates'])->whereNumber('player')->name('players.duplicates');

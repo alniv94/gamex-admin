@@ -8,7 +8,7 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     page,
     context,
 }, info) => {
-    test.setTimeout(180000);
+    test.setTimeout(210000);
     page.setDefaultTimeout(15000);
     const index = ['desktop', 'tablet', 'mobile'].indexOf(info.project.name) + 1;
     const loginIndex = index + 6;
@@ -60,6 +60,59 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     await page.getByLabel('OTP', { exact: true }).fill(capture.message.match(/\b([0-9]{6})\b/)![1]);
     await page.getByRole('button', { name: 'Sign In', exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
+    if (info.project.name !== 'desktop') {
+        await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    }
+    await page.getByRole('link', { name: 'Player Withdrawal Accounts', exact: true }).click();
+    await expect(page).toHaveURL(/\/players\/withdrawal_accounts$/);
+    await expect(
+        page.getByRole('heading', { name: 'Player Withdrawal Account', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Outlet' })).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(3);
+    const withdrawalSearch = page.getByLabel('Search withdrawal accounts', { exact: true });
+    await withdrawalSearch.fill(`912345678${index}`);
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Date Created', exact: true }).click();
+    await expect(page).toHaveURL(/direction=asc/);
+    await page.getByRole('button', { name: 'Filter withdrawal accounts', exact: true }).click();
+    const withdrawalFilter = page.getByRole('dialog');
+    await withdrawalFilter.getByLabel('Date From', { exact: true }).fill('2026-10-16');
+    await withdrawalFilter.getByLabel('Date To', { exact: true }).fill('2026-10-16');
+    await withdrawalFilter.getByRole('button', { name: 'Filter', exact: true }).click();
+    await expect(withdrawalFilter).not.toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(page.getByRole('cell', { name: /Oct 16, 2026/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Refresh withdrawal accounts', exact: true }).click();
+    await expect(withdrawalSearch).toHaveValue(`912345678${index}`);
+    await page
+        .getByRole('link', {
+            name: `Details for withdrawal account 912345678${index}`,
+            exact: true,
+        })
+        .click();
+    await expect(page).toHaveURL(new RegExp(`/player/${1000 + index}$`));
+    await expect(page.getByRole('heading', { name: 'Player Details', exact: true })).toBeVisible();
+    await page.goto('/players/withdrawal_accounts');
+    await page.getByRole('button', { name: 'Filter withdrawal accounts', exact: true }).click();
+    await withdrawalFilter.getByLabel('Date From', { exact: true }).fill('2026-10-17');
+    await withdrawalFilter.getByLabel('Date To', { exact: true }).fill('2026-10-17');
+    await withdrawalFilter.getByRole('button', { name: 'Filter', exact: true }).click();
+    await expect(page.getByRole('cell', { name: 'No data available', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filter withdrawal accounts', exact: true }).click();
+    await withdrawalFilter.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await withdrawalSearch.fill('No matching withdrawal account');
+    await expect(page.getByRole('cell', { name: 'No data available', exact: true })).toBeVisible();
+    await withdrawalSearch.fill('');
+    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await page.screenshot({
+        path: `storage/app/visual-baselines/${info.project.name}-withdrawal-accounts.png`,
+        fullPage: true,
+    });
+    expect(
+        await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
+    ).toBe(false);
     await page.goto('/players/list');
     await expect(page.getByRole('heading', { name: 'Player List', exact: true })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Verification Status' })).toBeVisible();

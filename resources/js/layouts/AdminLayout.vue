@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
-import { index as playerList } from '@/actions/App/Http/Controllers/PlayerController';
+import {
+    index as playerList,
+    withdrawalAccounts,
+} from '@/actions/App/Http/Controllers/PlayerController';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useDisplay } from 'vuetify';
@@ -123,6 +126,24 @@ async function logout() {
                                 class="navigation-icon" /></template
                         ><v-list-item-title>Player List</v-list-item-title></v-list-item
                     >
+                    <v-list-item
+                        :href="withdrawalAccounts.url()"
+                        color="primary"
+                        :active="page.url.split('?')[0] === withdrawalAccounts.url()"
+                        @click.prevent="
+                            router.visit(withdrawalAccounts());
+                            drawer = width >= 1264;
+                        "
+                    >
+                        <template #prepend>
+                            <img
+                                src="/images/navigation/player-list.png"
+                                alt=""
+                                class="navigation-icon"
+                            />
+                        </template>
+                        <v-list-item-title>Player Withdrawal Accounts</v-list-item-title>
+                    </v-list-item>
                 </v-list-group>
                 <v-list-subheader v-if="endingNavigation.length" class="mt-3 font-weight-bold"
                     >Ending Game</v-list-subheader

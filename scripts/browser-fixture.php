@@ -48,7 +48,11 @@ for ($index = 1; $index <= 3; $index++) {
         DB::table('players')->insert(['id' => $offset + $index, 'name' => 'Browser Player '.$offset.' '.$index, 'mobile_number' => '+63919999999'.$index, 'email' => 'browser'.$offset.$index.'@example.test', 'status' => 'Active', 'created_at' => now()]);
         DB::table('player_profiles')->insert(['player_id' => $offset + $index, 'first_name' => 'Browser', 'last_name' => 'Player', 'birthdate' => '1997-08-13', 'kyc_status' => 'Files Submitted']);
     }
-    DB::table('admin_player_fund_accounts')->insert(['id' => $index, 'player_id' => 1000 + $index, 'bank_id' => 1, 'account_number' => '912345678'.$index]);
+    DB::table('admin_player_fund_accounts')->insert([
+        'id' => $index, 'player_id' => 1000 + $index, 'bank_id' => 1,
+        'account_number' => '912345678'.$index, 'account_name' => 'Browser Player 1000 '.$index,
+        'created_at' => '2026-10-15 16:00:00',
+    ]);
     DB::table('player_wallet')->insert(['player_id' => 1000 + $index, 'actual_amount' => '100.25']);
     DB::table('player_wallet_transactions')->insert(['player_id' => 1000 + $index, 'transaction_type_id' => 1, 'description' => 'Browser wallet transaction', 'amount' => '100.25', 'created_at' => now()]);
     DB::table('admin_player_logs')->insert(['player_id' => 1000 + $index, 'action' => 'login', 'details' => 'Browser player logged in', 'created_at' => now()]);

@@ -33,6 +33,29 @@ class PlayerController extends Controller
         ]);
     }
 
+    public function withdrawalAccounts(Request $request): Response
+    {
+        $this->permit($request, 1);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
+            'sort' => ['nullable', Rule::in(['bank', 'account_number', 'account_name', 'is_verified', 'created_at'])],
+            'direction' => ['nullable', Rule::in(['asc', 'desc'])],
+            'per_page' => ['nullable', 'integer', Rule::in([5, 10, 15, 20, 25])],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $filters += ['search' => '', 'date_from' => '', 'date_to' => '', 'sort' => 'created_at', 'direction' => 'desc'];
+        $firstCreatedAt = DB::table('admin_player_fund_accounts')->min('created_at');
+
+        return Inertia::render('players/WithdrawalAccounts', [
+            'accounts' => $this->queries->withdrawalAccounts($filters)->paginate($filters['per_page'] ?? 5)->withQueryString(),
+            'filters' => $filters,
+            'firstAccountDate' => $firstCreatedAt ? CarbonImmutable::parse($firstCreatedAt, 'UTC')->setTimezone('Asia/Manila')->format('Y-m-d') : null,
+            'today' => now('Asia/Manila')->format('Y-m-d'),
+        ]);
+    }
+
     public function export(Request $request): StreamedResponse
     {
         $this->permit($request, 1);

@@ -61,6 +61,27 @@ class PlayerQueries
         return $query->orderBy($sort[$filters['sort'] ?? 'id'], $filters['direction'] ?? 'desc')->orderByDesc('p.id');
     }
 
+    /** @param array<string, mixed> $filters */
+    public function withdrawalAccounts(array $filters): Builder
+    {
+        $query = DB::table('admin_player_fund_accounts as f')
+            ->leftJoin('admin_player_banks as b', 'b.id', '=', 'f.bank_id')
+            ->leftJoin('players as p', 'p.id', '=', 'f.player_id')
+            ->select(['f.id', 'p.id as player_id', 'b.bank', 'f.account_number', 'f.account_name', 'f.is_verified', 'f.created_at']);
+
+        if (isset($filters['search']) && $filters['search'] !== '') {
+            $search = '%'.$filters['search'].'%';
+            $query->where(fn (Builder $q) => $q->where('b.bank', 'like', $search)
+                ->orWhere('f.account_number', 'like', $search)->orWhere('f.account_name', 'like', $search)
+                ->orWhere('f.is_verified', 'like', $search));
+        }
+        $this->dates($query, $filters, 'f.created_at');
+        $sort = ['bank' => 'b.bank', 'account_number' => 'f.account_number', 'account_name' => 'f.account_name',
+            'is_verified' => 'f.is_verified', 'created_at' => 'f.created_at'];
+
+        return $query->orderBy($sort[$filters['sort'] ?? 'created_at'], $filters['direction'] ?? 'desc')->orderByDesc('f.id');
+    }
+
     /** @return array<string, mixed> */
     public function details(int $playerId): array
     {

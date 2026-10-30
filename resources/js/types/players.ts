@@ -49,6 +49,14 @@ export interface FundAccount {
     is_default: string;
 }
 
+export interface WithdrawalAccount extends Pick<
+    FundAccount,
+    'id' | 'bank' | 'account_number' | 'account_name' | 'is_verified'
+> {
+    player_id: number | null;
+    created_at: string | null;
+}
+
 export interface PlayerActivity {
     id: number;
     details: string | null;
