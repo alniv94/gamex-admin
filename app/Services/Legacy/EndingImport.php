@@ -38,7 +38,7 @@ class EndingImport
         $query = DB::connection('legacy')->table($table);
         if ($table === 'ending_config') {
             $query->where(function (Builder $q): void {
-                $q->whereIn('config_name', ['Game Betting Disabled', 'Card Allow Open', 'Hours allowed to create additional card'])
+                $q->whereIn('config_name', ['Game Betting Disabled', 'Card Allow Open', 'Hours allowed to create additional card', 'PAGCOR Percentage'])
                     ->orWhere('config_name', 'like', 'Traditional Card - % Quarter Prize Percent')
                     ->orWhere('config_name', 'like', 'Per Quarter Card - % Quarter Prize Percent');
             });

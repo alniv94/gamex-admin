@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
+use App\Http\Controllers\EndingReportController;
 use App\Http\Controllers\LuckyFourController;
 use App\Http\Controllers\OtsoPanaloController;
 use App\Http\Controllers\PlayerCashierController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerReportController;
 use App\Http\Controllers\SettingsRoleController;
 use App\Http\Controllers\SettingsUserController;
+use App\Services\Ending\EndingReports;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,10 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/ending/reports/{report}', [EndingReportController::class, 'index'])
+        ->whereIn('report', array_keys(EndingReports::DEFINITIONS))->name('ending.reports.index');
+    Route::get('/ending/reports/{report}/export', [EndingReportController::class, 'export'])
+        ->whereIn('report', array_keys(EndingReports::DEFINITIONS))->name('ending.reports.export');
     Route::get('/lucky-four/games', [LuckyFourController::class, 'index'])->name('lucky-four.games.index');
     Route::get('/lucky-four/games/{game}', [LuckyFourController::class, 'show'])->whereNumber('game')->name('lucky-four.games.show');
     Route::put('/ending/games/{game}/lucky-four', [LuckyFourController::class, 'toggle'])->whereNumber('game')->name('lucky-four.games.toggle');

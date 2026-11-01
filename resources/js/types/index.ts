@@ -11,4 +11,5 @@ export interface AdminPageProps {
     [key: string]: unknown;
     auth: { user: AdminUser | null };
     csrf_token: string;
+    endingReportNavigation: { report: string; title: string; permission: string; icon: string }[];
 }

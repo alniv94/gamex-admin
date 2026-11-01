@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
+import { index as endingReport } from '@/actions/App/Http/Controllers/EndingReportController';
 import {
     index as luckyFourGames,
     bets as luckyFourBets,
@@ -33,7 +34,7 @@ const emit = defineEmits<{ expand: [] }>();
 const page = usePage<AdminPageProps>();
 const { can, canAny } = usePermissions();
 const { mobile } = useDisplay();
-const openedGroups = ref(['players', 'ending', 'otso', 'lucky-four', 'settings']);
+const openedGroups = ref(['players', 'ending', 'ending-reports', 'otso', 'lucky-four', 'settings']);
 const currentPath = computed(() => page.url.split(/[?#]/)[0]);
 const playerNavigation = computed(() =>
     [
@@ -114,6 +115,17 @@ const navigationSections = computed(() =>
                     route: EndingCatalogController.configuration(),
                 },
             ].filter((item) => can(item.permission)),
+        },
+        {
+            value: 'ending-reports',
+            title: 'Ending Reports',
+            icon: 'mdi-chart-box-outline',
+            items: (page.props.endingReportNavigation ?? [])
+                .map((item) => ({
+                    ...item,
+                    route: endingReport(item.report),
+                }))
+                .filter((item) => can(item.permission)),
         },
         {
             value: 'otso',
