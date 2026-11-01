@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import AdminLayout from '../../layouts/AdminLayout.vue';
 withDefaults(defineProps<{ title: string; migrationReady?: boolean }>(), {
     migrationReady: undefined,
 });
@@ -11,8 +10,8 @@ const message = computed(() => (typeof page.flash.success === 'string' ? page.fl
 </script>
 
 <template>
-    <Head :title="title" />
-    <AdminLayout>
+    <div>
+        <Head :title="title" />
         <div class="ending-page">
             <div class="ending-breadcrumb">Ending Game</div>
             <h1 class="ending-page-title">{{ title }}</h1>
@@ -31,5 +30,5 @@ const message = computed(() => (typeof page.flash.success === 'string' ? page.fl
             >
             <slot />
         </div>
-    </AdminLayout>
+    </div>
 </template>

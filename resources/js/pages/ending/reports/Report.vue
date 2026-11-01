@@ -6,7 +6,6 @@ import {
 import { show as showGame } from '@/actions/App/Http/Controllers/EndingGameController';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
-import AdminLayout from '@/layouts/AdminLayout.vue';
 import EndingPager from '@/components/ending/EndingPager.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import type { PageResult } from '@/types/ending';
@@ -124,8 +123,8 @@ onBeforeUnmount(() => clearTimeout(timer));
 </script>
 
 <template>
-    <Head :title="`${title} — Ending Reports`" />
-    <AdminLayout>
+    <div>
+        <Head :title="`${title} — Ending Reports`" />
         <div class="ending-page">
             <div class="ending-breadcrumb">Ending Reports</div>
             <h1 class="ending-page-title">{{ title }}</h1>
@@ -419,7 +418,7 @@ onBeforeUnmount(() => clearTimeout(timer));
                 <EndingPager :page="records" selectable :page-sizes="[10, 25, 50, 100]" />
             </v-card>
         </div>
-    </AdminLayout>
+    </div>
 </template>
 
 <style scoped>

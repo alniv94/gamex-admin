@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
-import AdminLayout from '@/layouts/AdminLayout.vue';
 import EndingPager from '@/components/ending/EndingPager.vue';
 import AdminUserForm from '@/components/settings/AdminUserForm.vue';
 import AdminRoleForm from '@/components/settings/AdminRoleForm.vue';
@@ -71,7 +70,7 @@ function roleNames(ids: number[]) {
 </script>
 
 <template>
-    <AdminLayout>
+    <div>
         <Head title="Users" />
         <div class="players-page">
             <div class="players-breadcrumb">Settings</div>
@@ -327,7 +326,7 @@ function roleNames(ids: number[]) {
                 >
             </v-card>
         </v-dialog>
-    </AdminLayout>
+    </div>
 </template>
 
 <style scoped>

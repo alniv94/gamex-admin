@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import AdminLayout from '@/layouts/AdminLayout.vue';
 defineProps<{ title: string; migrationReady?: boolean }>();
 const page = usePage();
 const success = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
 </script>
 <template>
-    <Head :title="'Otso Panalo · ' + title" />
-    <AdminLayout>
+    <div>
+        <Head :title="'Otso Panalo · ' + title" />
         <div class="ending-page otso-page">
             <div class="ending-breadcrumb">Otso Panalo Game</div>
             <h1 class="ending-page-title mt-0">{{ title }}</h1>
@@ -24,7 +23,7 @@ const success = computed(() => (typeof page.flash.success === 'string' ? page.fl
             >
             <slot />
         </div>
-    </AdminLayout>
+    </div>
 </template>
 
 <style scoped>

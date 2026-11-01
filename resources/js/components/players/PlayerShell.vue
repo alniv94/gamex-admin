@@ -2,7 +2,6 @@
 import { index } from '@/actions/App/Http/Controllers/PlayerController';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import AdminLayout from '../../layouts/AdminLayout.vue';
 defineProps<{ title: string; details?: boolean }>();
 const page = usePage();
 const dismissed = ref('');
@@ -10,8 +9,8 @@ const message = computed(() => (typeof page.flash.success === 'string' ? page.fl
 </script>
 
 <template>
-    <Head :title="title" />
-    <AdminLayout>
+    <div>
+        <Head :title="title" />
         <div class="players-page">
             <div class="players-breadcrumb">
                 Players<template v-if="details">
@@ -30,5 +29,5 @@ const message = computed(() => (typeof page.flash.success === 'string' ? page.fl
             >
             <slot />
         </div>
-    </AdminLayout>
+    </div>
 </template>

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import AdminLayout from '@/layouts/AdminLayout.vue';
 defineProps<{ title: string; migrationReady: boolean }>();
 const page = usePage();
 const success = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
 </script>
 <template>
-    <AdminLayout>
+    <div>
         <Head :title="'Lucky Four · ' + title" />
         <div class="ending-page lucky-four-shell">
             <header class="lucky-four-page-heading">
@@ -34,7 +33,7 @@ const success = computed(() => (typeof page.flash.success === 'string' ? page.fl
             >
             <slot />
         </div>
-    </AdminLayout>
+    </div>
 </template>
 
 <style scoped>

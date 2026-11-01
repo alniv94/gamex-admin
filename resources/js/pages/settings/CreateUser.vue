@@ -2,7 +2,6 @@
 import { computed, nextTick, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { index, store } from '@/actions/App/Http/Controllers/SettingsUserController';
-import AdminLayout from '@/layouts/AdminLayout.vue';
 import PermissionPicker from '@/components/settings/PermissionPicker.vue';
 import type { AdminPermission, ManagedRole } from '@/types/admin-users';
 
@@ -56,7 +55,7 @@ function cancel() {
 </script>
 
 <template>
-    <AdminLayout>
+    <div>
         <Head title="Create user" />
         <div class="create-user-page">
             <nav class="create-breadcrumb" aria-label="Breadcrumb">
@@ -287,7 +286,7 @@ function cancel() {
                 </div>
             </form>
         </div>
-    </AdminLayout>
+    </div>
 </template>
 
 <style scoped>

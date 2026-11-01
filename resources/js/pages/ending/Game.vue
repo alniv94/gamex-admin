@@ -4,7 +4,6 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import type { RouteDefinition } from '@/wayfinder';
-import AdminLayout from '../../layouts/AdminLayout.vue';
 import EndingPager from '../../components/ending/EndingPager.vue';
 import EndingLogs from '../../components/ending/EndingLogs.vue';
 import GameForm from '../../components/ending/GameForm.vue';
@@ -280,9 +279,9 @@ function viewCard(card: GameCard) {
 }
 </script>
 <template>
-    <Head :title="`Ending Game #${game.id}`" />
-    <AdminLayout
-        ><div class="ending-page">
+    <div>
+        <Head :title="`Ending Game #${game.id}`" />
+        <div class="ending-page">
             <v-btn
                 variant="text"
                 prepend-icon="mdi-arrow-left"
@@ -1164,8 +1163,8 @@ function viewCard(card: GameCard) {
                     ></v-card
                 ></v-dialog
             >
-        </div></AdminLayout
-    >
+        </div>
+    </div>
 </template>
 <style scoped>
 .ending-matchup {

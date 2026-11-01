@@ -2,7 +2,6 @@
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { Head, router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
-import AdminLayout from '../../layouts/AdminLayout.vue';
 import EndingLogs from '../../components/ending/EndingLogs.vue';
 import type { EndingLog, PageResult } from '../../types/ending';
 const props = defineProps<{ logs: PageResult<EndingLog>; filters: Record<string, string> }>();
@@ -12,8 +11,9 @@ const filters = reactive({
 });
 </script>
 <template>
-    <Head title="Historical Ending Logs" /><AdminLayout
-        ><div class="pa-4 pa-md-6">
+    <div>
+        <Head title="Historical Ending Logs" />
+        <div class="pa-4 pa-md-6">
             <v-btn
                 variant="text"
                 prepend-icon="mdi-arrow-left"
@@ -55,6 +55,7 @@ const filters = reactive({
                         ></v-row
                     ></v-form
                 ><v-divider /><EndingLogs :logs="logs"
-            /></v-card></div
-    ></AdminLayout>
+            /></v-card>
+        </div>
+    </div>
 </template>

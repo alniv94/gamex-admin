@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import AdminLayout from '../layouts/AdminLayout.vue';
 import type { AdminPageProps } from '../types';
 
 const page = usePage<AdminPageProps>();
@@ -9,8 +8,8 @@ const user = computed(() => page.props.auth.user);
 </script>
 
 <template>
-    <Head title="Dashboard" />
-    <AdminLayout>
+    <div>
+        <Head title="Dashboard" />
         <div v-if="user" class="dashboard-content">
             <h1 class="page-heading">Dashboard</h1>
             <v-card class="shadow account-card">
@@ -42,5 +41,5 @@ const user = computed(() => page.props.auth.user);
                 </dl>
             </v-card>
         </div>
-    </AdminLayout>
+    </div>
 </template>
