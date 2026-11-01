@@ -156,26 +156,90 @@ const actionForm = useForm({
     version: props.result?.version || 1,
     winner_id: null as number | null,
 });
+const selectedWinner = computed(() =>
+    props.winners?.data.find((winner) => winner.id === actionForm.winner_id),
+);
+const confirmationButtonColors: Record<string, string> = {
+    primary: '#007eaf',
+    success: '#237a3b',
+    warning: '#8a5200',
+    error: '#c62828',
+};
 const confirmation = computed(() => {
+    const disablingBetting = props.game.betting === 'Enabled';
     switch (pending.value) {
         case 'betting':
-            return props.game.betting === 'Enabled'
-                ? 'Disable betting for this game?'
-                : 'Enable betting for this game?';
+            return {
+                title: disablingBetting ? 'Disable Betting' : 'Enable Betting',
+                description: disablingBetting
+                    ? 'Close betting for this game and stop accepting new wagers.'
+                    : 'Open betting for this game so players can place their wagers.',
+                label: disablingBetting ? 'Disable Betting' : 'Enable Betting',
+                color: disablingBetting ? 'warning' : 'success',
+                icon: disablingBetting ? 'mdi-lock-outline' : 'mdi-lock-open-outline',
+                notice: disablingBetting
+                    ? 'Existing bets will remain in this game.'
+                    : 'Bets can be placed until the betting deadline.',
+                noticeIcon: 'mdi-information-outline',
+            };
         case 'cancel':
-            return 'Cancel this game and refund all outstanding wagers?';
+            return {
+                title: 'Cancel Game',
+                description:
+                    'Cancel this game and refund all outstanding wagers to player wallets.',
+                label: 'Cancel Game & Refund',
+                color: 'error',
+                icon: 'mdi-cancel',
+                notice: 'This action cannot be undone. Betting will be disabled for this game.',
+                noticeIcon: 'mdi-alert-circle-outline',
+            };
         case 'import':
-            return 'Import additional legacy bets for this game? Existing records will be checked for conflicts.';
+            return {
+                title: 'Import Legacy Bets',
+                description: 'Import additional legacy bets into this game.',
+                label: 'Import Bets',
+                color: 'primary',
+                icon: 'mdi-database-import-outline',
+                notice: 'Existing records will be checked for conflicts before importing.',
+                noticeIcon: 'mdi-information-outline',
+            };
         case 'approveResult':
-            return 'Approve the saved quarter results? Approved results cannot be edited.';
+            return {
+                title: 'Approve Result',
+                description:
+                    'Review the saved quarter results before approving them for this game.',
+                label: 'Approve Result',
+                color: 'success',
+                icon: 'mdi-check-decagram-outline',
+                notice: 'Approved results cannot be edited. Verify every quarter before continuing.',
+                noticeIcon: 'mdi-lock-outline',
+            };
         case 'generate':
-            return 'Compute winners using the approved result?';
+            return {
+                title: 'Generate Winners',
+                description: 'Find winning tickets using the approved quarter results below.',
+                label: 'Generate Winners',
+                color: 'primary',
+                icon: 'mdi-trophy-outline',
+                notice: 'Winners will need approval before eligible secondary prizes are credited.',
+                noticeIcon: 'mdi-information-outline',
+            };
         case 'approveWinners':
-            return actionForm.winner_id
-                ? 'Approve this winner? Eligible secondary prizes will be credited to the player wallet.'
-                : 'Approve all pending winners? Eligible secondary prizes will be credited to player wallets.';
+            return {
+                title: actionForm.winner_id ? 'Approve Winner' : 'Approve All Winners',
+                description: actionForm.winner_id
+                    ? 'Approve the selected winning ticket for this game.'
+                    : 'Approve all pending winners across every page for this game.',
+                label: actionForm.winner_id ? 'Approve Winner' : 'Approve All Winners',
+                color: 'success',
+                icon: 'mdi-shield-check-outline',
+                notice: actionForm.winner_id
+                    ? 'Eligible secondary prizes will be credited to the player wallet.'
+                    : 'Eligible secondary prizes will be credited to player wallets.',
+                noticeIcon: 'mdi-wallet-outline',
+            };
         default:
-            return '';
+            return null;
     }
 });
 function ask(action: Action, winnerId: number | null = null) {
@@ -1061,17 +1125,121 @@ function confirm() {
         <v-dialog
             :model-value="!!pending"
             max-width="560"
+            scrollable
             :persistent="actionForm.processing"
+            aria-labelledby="otso-confirm-title"
+            aria-describedby="otso-confirm-description otso-confirm-notice"
             @update:model-value="pending = null"
-            ><v-card
-                ><v-card-title>Confirm Action</v-card-title
-                ><v-card-text
-                    ><p>{{ confirmation }}</p>
+        >
+            <v-card
+                v-if="confirmation"
+                class="otso-confirm-dialog"
+                rounded="xl"
+                :style="{ '--otso-confirm-color': `var(--v-theme-${confirmation.color})` }"
+                :aria-busy="actionForm.processing"
+            >
+                <div class="otso-confirm-header pa-5 pa-sm-6 pb-0 pb-sm-0">
+                    <v-avatar
+                        :color="confirmation.color"
+                        variant="tonal"
+                        rounded="lg"
+                        size="48"
+                        class="flex-shrink-0"
+                    >
+                        <v-icon :icon="confirmation.icon" size="26" />
+                    </v-avatar>
+                    <div class="otso-confirm-heading">
+                        <p class="otso-confirm-eyebrow text-medium-emphasis ma-0 mb-1">
+                            Otso Panalo
+                        </p>
+                        <h2 id="otso-confirm-title" class="otso-confirm-title ma-0">
+                            {{ confirmation.title }}
+                        </h2>
+                    </div>
+                    <v-btn
+                        icon="mdi-close"
+                        variant="text"
+                        size="small"
+                        color="secondary"
+                        aria-label="Close confirmation"
+                        :disabled="actionForm.processing"
+                        @click="pending = null"
+                    />
+                </div>
+                <v-card-text class="otso-confirm-body pa-5 pa-sm-6">
+                    <p id="otso-confirm-description" class="otso-confirm-description ma-0 mb-5">
+                        {{ confirmation.description }}
+                    </p>
+                    <section class="otso-confirm-context pa-4" aria-label="Game to confirm">
+                        <p class="otso-confirm-eyebrow text-medium-emphasis ma-0 mb-1">
+                            Game #{{ game.id }}
+                        </p>
+                        <p class="otso-confirm-matchup ma-0">
+                            {{ game.team_a_name }}
+                            <span class="text-medium-emphasis font-weight-regular">vs</span>
+                            {{ game.team_b_name }}
+                        </p>
+                        <p class="text-body-small text-medium-emphasis ma-0 mt-1">
+                            {{ displayDate(game.schedule) }}
+                        </p>
+                        <div
+                            v-if="pending === 'approveResult' || pending === 'generate'"
+                            class="otso-confirm-quarters mt-4"
+                            role="group"
+                            aria-label="Quarter results"
+                        >
+                            <div
+                                v-for="quarter in quarters"
+                                :key="quarter.number"
+                                class="otso-confirm-quarter pa-2 text-center"
+                            >
+                                <p class="otso-confirm-eyebrow text-medium-emphasis ma-0">
+                                    Q{{ quarter.number }}
+                                </p>
+                                <p class="otso-confirm-score ma-0">
+                                    {{ result?.[quarter.result] || '—' }}
+                                </p>
+                            </div>
+                        </div>
+                        <dl
+                            v-if="pending === 'approveWinners' && selectedWinner"
+                            class="otso-confirm-winner mt-4 pt-3"
+                        >
+                            <div>
+                                <dt>Ticket</dt>
+                                <dd>
+                                    #{{ selectedWinner.bet_id }} {{ selectedWinner.ticket_name }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>Player</dt>
+                                <dd>
+                                    {{
+                                        selectedWinner.username ||
+                                        selectedWinner.player_name ||
+                                        'Unlinked player'
+                                    }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>{{ selectedWinner.winner_type }}</dt>
+                                <dd class="font-weight-bold">
+                                    PHP {{ money(selectedWinner.prize_amount) }}
+                                </dd>
+                            </div>
+                        </dl>
+                    </section>
                     <v-select
                         v-if="pending === 'cancel'"
                         v-model="actionForm.reason"
                         class="mt-4"
                         label="Cancellation Reason"
+                        variant="outlined"
+                        density="comfortable"
+                        rounded="lg"
+                        color="error"
+                        :disabled="actionForm.processing"
+                        :error-messages="actionForm.errors.reason"
                         :items="[
                             { title: 'Game cancelled', value: 'cancelled' },
                             {
@@ -1087,17 +1255,53 @@ function confirm() {
                                 value: 'started_before_close_of_betting',
                             },
                         ]"
-                    /><v-alert v-if="page.props.errors.action" type="error" class="mt-4">{{
-                        page.props.errors.action
-                    }}</v-alert></v-card-text
-                ><v-card-actions
-                    ><v-btn :disabled="actionForm.processing" @click="pending = null">Back</v-btn
-                    ><v-btn color="primary" :loading="actionForm.processing" @click="confirm"
-                        >Confirm</v-btn
-                    ></v-card-actions
-                ></v-card
-            ></v-dialog
-        >
+                    />
+                    <div class="otso-confirm-notice d-flex align-start ga-3 pa-3 mt-4">
+                        <v-icon
+                            :icon="confirmation.noticeIcon"
+                            :color="confirmation.color"
+                            size="20"
+                            class="mt-1 flex-shrink-0"
+                        />
+                        <p id="otso-confirm-notice" class="ma-0">{{ confirmation.notice }}</p>
+                    </div>
+                    <v-alert
+                        v-if="page.props.errors.action"
+                        type="error"
+                        variant="tonal"
+                        rounded="lg"
+                        class="mt-4"
+                    >
+                        {{ page.props.errors.action }}
+                    </v-alert>
+                </v-card-text>
+                <v-divider />
+                <v-card-actions class="otso-confirm-actions pa-4 px-sm-6">
+                    <v-btn
+                        variant="outlined"
+                        color="secondary"
+                        rounded="lg"
+                        height="44"
+                        :disabled="actionForm.processing"
+                        @click="pending = null"
+                    >
+                        {{ pending === 'cancel' ? 'Keep Game' : 'Back' }}
+                    </v-btn>
+                    <v-btn
+                        :color="confirmationButtonColors[confirmation.color]"
+                        :prepend-icon="confirmation.icon"
+                        variant="flat"
+                        rounded="lg"
+                        height="44"
+                        :loading="actionForm.processing"
+                        :disabled="actionForm.processing"
+                        @click="confirm"
+                    >
+                        {{ confirmation.label }}
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
     </OtsoShell>
 </template>
 
@@ -1170,9 +1374,141 @@ function confirm() {
     margin-top: 3px;
     font-size: 11px;
 }
+.otso-confirm-dialog {
+    --v-font-body: Poppins, sans-serif;
+    --v-font-heading: var(--v-font-body);
+    border-top: 4px solid rgb(var(--otso-confirm-color));
+    border-radius: 20px !important;
+    box-shadow: 0 24px 64px rgb(11 11 28 / 18%) !important;
+}
+.otso-confirm-winner dd {
+    margin: 0;
+}
+.otso-confirm-dialog :deep(.v-label) {
+    color: rgba(var(--v-theme-on-surface), 0.7);
+    opacity: 1;
+}
+.otso-confirm-dialog :deep(.v-field) {
+    border-radius: 10px;
+}
+.otso-confirm-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-shrink: 0;
+}
+.otso-confirm-heading {
+    flex: 1;
+    min-width: 0;
+}
+.otso-confirm-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    line-height: 1.6;
+    text-transform: uppercase;
+}
+.otso-confirm-title {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+.otso-confirm-description {
+    color: rgba(var(--v-theme-on-surface), 0.7);
+    font-size: 14px;
+    line-height: 1.7;
+}
+.otso-confirm-body {
+    overscroll-behavior: contain;
+}
+.otso-confirm-context {
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: 12px;
+    background: rgb(var(--v-theme-background));
+}
+.otso-confirm-matchup {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+.otso-confirm-quarters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+.otso-confirm-quarter {
+    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: 8px;
+    background: rgb(var(--v-theme-surface));
+}
+.otso-confirm-score {
+    font-size: 20px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+.otso-confirm-winner {
+    display: grid;
+    gap: 8px;
+    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    font-size: 12px;
+}
+.otso-confirm-winner > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+.otso-confirm-winner dt {
+    color: rgba(var(--v-theme-on-surface), 0.6);
+}
+.otso-confirm-winner dd {
+    text-align: right;
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.otso-confirm-notice {
+    border: 1px solid rgba(var(--otso-confirm-color), 0.18);
+    border-radius: 10px;
+    background: rgba(var(--otso-confirm-color), 0.06);
+    font-size: 12px;
+    line-height: 1.7;
+}
+.otso-confirm-actions {
+    justify-content: flex-end;
+    gap: 12px;
+    flex-shrink: 0;
+}
+.otso-confirm-actions > .v-btn {
+    margin: 0;
+    padding-inline: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
 @media (max-width: 599px) {
     .otso-game-actions {
         position: static;
+    }
+    .otso-confirm-header {
+        gap: 12px;
+    }
+    .otso-confirm-title {
+        font-size: 20px;
+    }
+    .otso-confirm-score {
+        font-size: 16px;
+    }
+    .otso-confirm-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .otso-confirm-actions > .v-btn {
+        width: 100%;
     }
 }
 </style>

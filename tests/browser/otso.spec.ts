@@ -121,11 +121,11 @@ test('Otso configuration, fixed jackpot, results, winners, bets filters and expo
     const bettingSwitch = page.getByRole('switch', { name: 'Enable Betting', exact: true });
     await expect(bettingSwitch).not.toBeChecked();
     await bettingSwitch.click();
-    await expect(dialog.getByText('Enable betting for this game?')).toBeVisible();
+    await expect(dialog).toHaveAccessibleName('Enable Betting');
     await dialog.getByRole('button', { name: 'Back', exact: true }).click();
     await expect(bettingSwitch).not.toBeChecked();
     await bettingSwitch.click();
-    await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Enable Betting', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('switch', { name: 'Disable Betting', exact: true })).toBeChecked();
 
@@ -169,19 +169,19 @@ test('Otso configuration, fixed jackpot, results, winners, bets filters and expo
     await expect(resultEntry.getByRole('textbox')).toHaveCount(0);
     await expect(resultEntry.getByText('For Approval', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Approve Result', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Approve Result', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Edit Result', exact: true })).toHaveCount(0);
     await page.getByRole('tab', { name: 'Winners', exact: true }).click();
     await page.getByRole('button', { name: 'Generate Winners', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Generate Winners', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     const secondPrizeWinner = page.getByRole('row').filter({
         has: page.getByRole('cell', { name: 'Second Prize', exact: true }),
     });
     await expect(secondPrizeWinner).toContainText('100.00');
     await page.getByRole('button', { name: 'Approve All', exact: true }).click();
-    await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Approve All Winners', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(secondPrizeWinner).toContainText('Approved');
     await expect(secondPrizeWinner).toContainText('Yes');
