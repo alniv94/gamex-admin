@@ -3,12 +3,14 @@
 use App\Models\AdminProfile;
 use App\Models\User;
 use App\Services\Auth\AdminPermissions;
+use App\Services\Legacy\OtsoPanaloImport;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\Support\PlayerFixtures;
 
@@ -43,6 +45,9 @@ $playerFixture = new class
     }
 };
 $playerFixture->seed();
+Schema::table('player_wallet_transaction_types', function (Blueprint $table): void {
+    $table->string('reference_table')->nullable();
+});
 Schema::table('player_wallet_transactions', function (Blueprint $table): void {
     $table->unsignedBigInteger('player_wallet_id')->nullable();
     $table->integer('reference_id')->default(0);
@@ -125,6 +130,47 @@ for ($index = 1; $index <= 3; $index++) {
     $user = User::factory()->create(['name' => 'Settings Administrator '.$index, 'mobile_number' => '+63920123456'.$index, 'email' => 'settings-admin'.$index.'@example.test', 'status' => 'Active']);
     $user->profile()->create([]);
     $user->assignRole($accessManager);
+}
+
+DB::table('ending_leagues')->insert(['id' => 2, 'league' => 'NBA']);
+DB::table('ending_teams')->insert([
+    ['id' => 3, 'league_id' => 2, 'team_name' => 'Atlanta Hawks', 'team_alias' => 'ATL'],
+    ['id' => 4, 'league_id' => 2, 'team_name' => 'Boston Celtics', 'team_alias' => 'BOS'],
+]);
+foreach ([1 => 'Not yet started', 2 => 'Started', 3 => 'Finished', 4 => 'Cancelled'] as $id => $name) {
+    DB::table('otso_panalo_statuses')->insert(compact('id', 'name'));
+}
+foreach (OtsoPanaloImport::WINNER_TYPES as $id => $winner_type) {
+    DB::table('otso_panalo_winner_types')->insert(compact('id', 'winner_type'));
+}
+DB::table('otso_panalo_bet_types')->insert(['id' => 1, 'bet_type' => 'Manual']);
+DB::table('otso_panalo_game_configs')->insert(['id' => 1, 'name' => 'Otso Browser Standard', 'status' => 'Active',
+    'logo' => '/uploads/otso_panalo/game_configs/otso_panalo_20260415091914.png',
+    'bet_amount' => '20.00', 'jackpot_prize' => '1000.00', 'second_prize' => '100.00', 'third_prize' => '50.00', 'fourth_prize' => '10.00', 'pool_percentage' => '20.00']);
+DB::table('admin_otso_panalo_imports')->insert(['source' => config('otso.legacy_source'), 'report' => '{}', 'verified_at' => now()]);
+for ($index = 1; $index <= 3; $index++) {
+    $user = User::factory()->create(['name' => 'Otso Administrator '.$index, 'mobile_number' => '+63918880000'.$index, 'email' => 'otso-admin'.$index.'@example.test', 'status' => 'Active']);
+    $user->profile()->create([]);
+    foreach (['Otso Panalo', 'Create Otso Panalo', 'Update Otso Panalo', 'Otso Panalo Game Settings', 'Otso Panalo Game Result', 'Otso Panalo Create Result', 'Otso Panalo Update Result', 'Otso Panalo Approve Result', 'Otso Panalo Game Winners', 'Otso Panalo Game Winner Approval', 'Otso Panalo Game Types', 'Otso Panalo Update Game Types', 'Ending Game PDF Generation'] as $permission) {
+        Permission::findOrCreate($permission, 'web');
+        $user->givePermissionTo($permission);
+    }
+    foreach ([8000, 9000] as $offset) {
+        DB::table('ending_games')->insert(['id' => $offset + $index, 'team_a' => 3, 'team_b' => 4, 'schedule' => now()->addDay(), 'created_at' => now()]);
+    }
+    $game = 900 + $index;
+    DB::table('otso_panalo_games')->insert(['id' => $game, 'ending_game_id' => 8000 + $index, 'game_config_id' => 1, 'betting_deadline' => now()->addDay()->subMinutes(30),
+        'bet_amount' => '20.00', 'jackpot_prize' => '1000.00', 'second_prize' => '100.00', 'third_prize' => '50.00', 'fourth_prize' => '10.00', 'pool_percentage' => '20.00', 'created_at' => now()]);
+    foreach ([3, 4] as $matches) {
+        $data = [];
+        foreach (['first', 'second', 'third', 'fourth'] as $q => $quarter) {
+            $data[$quarter.'_quarter_combination'] = $q < $matches ? ($q + 1).'-'.($q + 2) : '0-0';
+        }
+        DB::table('otso_panalo_bets')->insert($data + ['game_id' => $game, 'player_id' => 9, 'bet_type_id' => 1, 'name' => 'Browser '.$matches.' quarters', 'amount' => '20.00', 'created_at' => now()]);
+    }
+    for ($q = 1; $q <= 4; $q++) {
+        DB::table('ending_game_results')->insert(['game_id' => 8000 + $index, 'quarter_id' => $q, 'team_a_score' => 10 + 11 * $q, 'team_b_score' => 21 + 11 * $q, 'slot_id' => 1]);
+    }
 }
 
 echo 'Isolated browser fixtures ready.'.PHP_EOL;

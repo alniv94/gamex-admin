@@ -1,0 +1,230 @@
+<?php
+
+namespace Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia;
+use Tests\Support\OtsoPanaloFixtures;
+use Tests\TestCase;
+
+class OtsoPanaloPagesTest extends TestCase
+{
+    use OtsoPanaloFixtures, RefreshDatabase;
+
+    public function test_pages_require_authentication_and_writes_require_their_own_permissions(): void
+    {
+        $this->otsoFixtures();
+        $game = $this->otsoGame();
+        $this->get(route('otso.games.index'))->assertRedirect(route('login'));
+        $this->otsoAdmin([]);
+        $this->get(route('otso.games.index'))->assertForbidden();
+
+        $this->otsoAdmin(['Otso Panalo']);
+        foreach (['otso.results.store', 'otso.results.approve', 'otso.winners.generate', 'otso.winners.approve', 'otso.games.cancel', 'otso.bets.import'] as $route) {
+            $this->post(route($route, $game), [])->assertForbidden();
+        }
+        $this->put(route('otso.games.betting', $game), ['enabled' => true])->assertForbidden();
+        $this->get(route('otso.bets.pdf', $game))->assertForbidden();
+
+        $this->assertDatabaseCount('admin_otso_panalo_audits', 0);
+        $this->assertDatabaseCount('player_wallet_transactions', 0);
+    }
+
+    public function test_games_details_configurations_and_bets_render_without_archived_private_payloads(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame(['legacy_payload' => '{"secret":"archive"}']);
+        $this->otsoBet($game);
+
+        $this->get(route('otso.games.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('otso/Games')
+            ->has('games.data', 1)->where('games.data.0.jackpot_prize', 1000)->missing('games.data.0.legacy_payload'));
+        $this->get(route('otso.games.show', $game))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('otso/Game')->where('game.id', $game)->missing('game.legacy_payload')->where('summary.bets', 1));
+        $this->get(route('otso.configs.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('otso/Configs')->has('configs.data', 1));
+        $this->get(route('otso.bets.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('otso/Bets')
+            ->has('bets.data', 1)->where('bets.data.0.username', 'otso_player')->where('migrationReady', true)
+            ->where('filters.sort', 'created_at')->where('filters.direction', 'desc'));
+
+        DB::table('admin_otso_panalo_imports')->delete();
+        $this->get(route('otso.bets.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('migrationReady', false));
+    }
+
+    public function test_bets_filter_by_manila_calendar_date_game_search_and_pagination(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $other = $this->otsoGame();
+        $included = $this->otsoBet($game, 1, ['created_at' => '2026-10-31 16:05:00', 'name' => 'Selected Ticket']);
+        $this->otsoBet($game, 1, ['created_at' => '2026-10-31 15:59:00']);
+        $this->otsoBet($other, 1, ['created_at' => '2026-10-31 16:05:00']);
+
+        $this->get(route('otso.bets.index', ['game_id' => $game, 'date_from' => '2026-11-01', 'search' => 'Selected', 'per_page' => 1]))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('bets.total', 1)->where('bets.data.0.id', $included)->where('bets.per_page', 1));
+        $this->get(route('otso.bets.index', ['game_id' => $game, 'filter_by' => 'Game Schedule', 'date_from' => '2026-11-02']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('bets.total', 2));
+        $this->get(route('otso.bets.index', ['search' => "' OR 1=1 --"]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('bets.total', 0));
+        $this->get(route('otso.bets.index', ['per_page' => 501]))->assertSessionHasErrors('per_page');
+    }
+
+    public function test_games_use_production_pagination_and_sort_across_the_filtered_dataset(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $older = $this->otsoGame(['created_at' => '2026-10-29 00:00:00', 'bet_amount' => '5.00']);
+        $newer = $this->otsoGame(['created_at' => '2026-10-30 00:00:00', 'bet_amount' => '20.00']);
+
+        $this->get(route('otso.games.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('games.per_page', 10)->where('games.data.0.id', $newer));
+        $this->get(route('otso.games.index', ['sort' => 'bet_amount', 'direction' => 'asc', 'per_page' => 1]))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('games.data.0.id', $older)->where('games.total', 2)->where('filters.sort', 'bet_amount'));
+        $this->get(route('otso.games.index', ['sort' => 'bet_amount', 'direction' => 'asc', 'per_page' => 1, 'page' => 2]))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('games.data.0.id', $newer));
+        $this->get(route('otso.games.index', ['sort' => 'bet_amount', 'direction' => 'desc']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('games.data.0.id', $newer));
+        $this->get(route('otso.games.index', ['sort' => 'g.id; DROP TABLE users']))->assertSessionHasErrors('sort');
+        $this->get(route('otso.games.index', ['direction' => 'invalid']))->assertSessionHasErrors('direction');
+    }
+
+    public function test_bets_sort_the_filtered_dataset_before_pagination_and_reject_unknown_columns(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $first = $this->otsoBet($game, 1, ['amount' => '5.00', 'created_at' => '2026-10-29 10:00:00']);
+        $second = $this->otsoBet($game, 2, ['amount' => '40.00', 'refunded' => 'Yes', 'created_at' => '2026-10-29 12:00:00']);
+        $third = $this->otsoBet($game, 3, ['amount' => '20.00', 'created_at' => '2026-10-28 10:00:00']);
+        $this->otsoBet($this->otsoGame(), 0, ['amount' => '1.00']);
+
+        $this->get(route('otso.bets.index', ['game_id' => $game]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('bets.per_page', 10)->where('bets.data.0.id', $second));
+        foreach ([['id', 'asc', $first], ['id', 'desc', $third], ['amount', 'asc', $first], ['amount', 'desc', $second],
+            ['refunded', 'asc', $third], ['refunded', 'desc', $second], ['created_at', 'asc', $third], ['created_at', 'desc', $second]] as [$sort, $direction, $expected]) {
+            $this->get(route('otso.bets.index', ['game_id' => $game, 'sort' => $sort, 'direction' => $direction, 'per_page' => 1]))
+                ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('bets.total', 3)->where('bets.data.0.id', $expected)->where('filters.sort', $sort)->where('filters.direction', $direction));
+        }
+        $this->get(route('otso.bets.index', ['game_id' => $game, 'sort' => 'amount', 'direction' => 'asc', 'per_page' => 1, 'page' => 2]))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('bets.data.0.id', $third));
+        foreach (['otso.bets.index', 'otso.bets.export'] as $route) {
+            $this->get(route($route, ['sort' => 'b.id; DROP TABLE users']))->assertSessionHasErrors(['sort' => 'The selected sort is invalid.']);
+            $this->get(route($route, ['sort' => 'bet_amount']))->assertSessionHasErrors('sort');
+            $this->get(route($route, ['direction' => 'invalid']))->assertSessionHasErrors('direction');
+        }
+    }
+
+    public function test_bets_include_the_ending_game_id_and_only_approved_quarter_results(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin(['Otso Panalo']);
+        DB::table('ending_games')->insert(['id' => 1000, 'team_a' => 1, 'team_b' => 2,
+            'schedule' => '2026-11-02 10:00:00', 'created_at' => now(), 'legacy_checksum' => str_repeat('a', 64)]);
+        $approved = $this->otsoGame();
+        $this->otsoBet($approved, 3);
+        $this->otsoApprovedResult($approved);
+        $pending = $this->otsoGame();
+        $this->otsoBet($pending);
+        DB::table('otso_panalo_game_results')->insert(['game_id' => $pending, 'status' => 'For Approval',
+            'first_quarter_result' => '1-2', 'fourth_quarter_result' => '4-5']);
+
+        $this->get(route('otso.bets.index', ['game_id' => $approved]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('bets.data.0.ending_game_id', 1001)->where('bets.data.0.game_id', $approved)
+            ->where('bets.data.0.first_quarter_result', '1-2')->where('bets.data.0.first_quarter_status', 'Win')
+            ->where('bets.data.0.fourth_quarter_result', '4-5')->where('bets.data.0.fourth_quarter_status', 'Lose'));
+        $this->get(route('otso.bets.index', ['game_id' => $pending]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('bets.data.0.first_quarter_result', null)->where('bets.data.0.fourth_quarter_result', null)
+            ->where('bets.data.0.first_quarter_status', null)->where('bets.data.0.fourth_quarter_status', null));
+    }
+
+    public function test_details_financial_totals_exclude_refunded_tickets_and_other_games(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $paid = $this->otsoBet($game, 3, ['amount' => '20.10']);
+        $this->otsoBet($game, 0, ['amount' => '30.20']);
+        $refunded = $this->otsoBet($game, 2, ['amount' => '40.30', 'refunded' => 'Yes']);
+        $other = $this->otsoBet($this->otsoGame(), 4, ['amount' => '500.00']);
+        DB::table('otso_panalo_winners')->insert([
+            ['bet_id' => $paid, 'winner_type_id' => 2, 'prize_amount' => '100.25'],
+            ['bet_id' => $refunded, 'winner_type_id' => 3, 'prize_amount' => '50.00'],
+            ['bet_id' => $other, 'winner_type_id' => 1, 'prize_amount' => '1000.00'],
+        ]);
+
+        $this->get(route('otso.games.show', $game))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('summary.bets', 3)->where('summary.gross', 50.3)->where('summary.winnings', 100.25)
+            ->where('summary.refunded', 40.3));
+    }
+
+    public function test_winner_and_result_read_permissions_limit_detail_props(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin(['Otso Panalo']);
+        $game = $this->otsoGame();
+        $this->otsoApprovedResult($game);
+
+        $this->get(route('otso.games.show', $game))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('result', null)->where('winners', null)->where('scores', [])->where('canViewResult', false));
+    }
+
+    public function test_winner_approval_cannot_target_another_games_ticket(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $other = $this->otsoGame();
+        $bet = $this->otsoBet($other, 3);
+        $this->otsoApprovedResult($game);
+        $winner = DB::table('otso_panalo_winners')->insertGetId(['bet_id' => $bet, 'winner_type_id' => 2, 'prize_amount' => '100.00']);
+
+        $this->post(route('otso.winners.approve', $game), ['winner_id' => $winner])->assertNotFound();
+
+        $this->assertDatabaseHas('otso_panalo_winners', ['id' => $winner, 'winner_status' => 'Verified']);
+        $this->assertDatabaseCount('player_wallet_transactions', 0);
+    }
+
+    public function test_csv_export_includes_all_filtered_sorted_rows_and_protects_spreadsheet_values(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $higher = $this->otsoBet($game, 4, ['name' => '=HYPERLINK("bad")', 'amount' => '40.00']);
+        $lower = $this->otsoBet($game, 2, ['amount' => '5.00']);
+        $this->otsoBet($this->otsoGame(), 1, ['name' => 'Another game']);
+
+        $response = $this->get(route('otso.bets.export', ['game_id' => $game, 'per_page' => 1, 'sort' => 'amount', 'direction' => 'asc']));
+
+        $response->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $csv = $response->streamedContent();
+        $this->assertStringContainsString("'=HYPERLINK", $csv);
+        $this->assertStringContainsString("'1-2", $csv);
+        $this->assertStringNotContainsString('Another game', $csv);
+        $lines = explode("\n", trim($csv));
+        $this->assertCount(3, $lines);
+        $this->assertStringStartsWith($lower.',', $lines[1]);
+        $this->assertStringStartsWith($higher.',', $lines[2]);
+    }
+
+    public function test_pdf_download_includes_all_game_bets_and_escapes_ticket_text(): void
+    {
+        $this->otsoFixtures();
+        $this->otsoAdmin();
+        $game = $this->otsoGame();
+        $this->otsoBet($game, 4, ['name' => '<script>alert(1)</script>', 'created_at' => '2026-04-01 00:00:00']);
+        $this->otsoBet($game, 0, ['refunded' => 'Yes']);
+
+        $response = $this->get(route('otso.bets.pdf', $game));
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $html = view('otso.bets', ['generated_date' => 'Nov 01, 2026', 'details' => ['id' => $game],
+            'schedule' => '-', 'betting_deadline' => '-', 'total_bet_amount' => 40,
+            'bets' => [['id' => 1, 'username' => 'otso_player', 'bet_type' => 'Straight', 'name' => '<script>alert(1)</script>', 'first_quarter_combination' => '1-2', 'second_quarter_combination' => '2-3', 'third_quarter_combination' => '3-4', 'fourth_quarter_combination' => '4-5', 'amount' => 20, 'created_at' => '2026-04-01 00:00:00']]])->render();
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('Apr 01, 2026 08:00 AM', $html);
+    }
+}

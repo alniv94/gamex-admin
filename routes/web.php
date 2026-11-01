@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
+use App\Http\Controllers\OtsoPanaloController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\SettingsRoleController;
@@ -19,6 +20,24 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/otso-panalo/games', [OtsoPanaloController::class, 'index'])->name('otso.games.index');
+    Route::get('/otso-panalo/configs', [OtsoPanaloController::class, 'configurations'])->name('otso.configs.index');
+    Route::post('/otso-panalo/configs', [OtsoPanaloController::class, 'storeConfig'])->name('otso.configs.store');
+    Route::post('/otso-panalo/configs/{config}', [OtsoPanaloController::class, 'updateConfig'])->whereNumber('config')->name('otso.configs.update');
+    Route::get('/otso-panalo/bets', [OtsoPanaloController::class, 'bets'])->name('otso.bets.index');
+    Route::get('/otso-panalo/bets/export', [OtsoPanaloController::class, 'exportBets'])->middleware('throttle:10,1')->name('otso.bets.export');
+    Route::post('/otso-panalo/games', [OtsoPanaloController::class, 'store'])->name('otso.games.store');
+    Route::get('/otso-panalo/games/{game}', [OtsoPanaloController::class, 'show'])->whereNumber('game')->name('otso.games.show');
+    Route::put('/otso-panalo/games/{game}', [OtsoPanaloController::class, 'update'])->whereNumber('game')->name('otso.games.update');
+    Route::put('/otso-panalo/games/{game}/betting', [OtsoPanaloController::class, 'betting'])->whereNumber('game')->name('otso.games.betting');
+    Route::post('/otso-panalo/games/{game}/results', [OtsoPanaloController::class, 'storeResult'])->whereNumber('game')->name('otso.results.store');
+    Route::put('/otso-panalo/games/{game}/results', [OtsoPanaloController::class, 'updateResult'])->whereNumber('game')->name('otso.results.update');
+    Route::post('/otso-panalo/games/{game}/results/approve', [OtsoPanaloController::class, 'approveResult'])->whereNumber('game')->name('otso.results.approve');
+    Route::post('/otso-panalo/games/{game}/winners/generate', [OtsoPanaloController::class, 'generate'])->whereNumber('game')->name('otso.winners.generate');
+    Route::post('/otso-panalo/games/{game}/winners/approve', [OtsoPanaloController::class, 'approveWinners'])->whereNumber('game')->name('otso.winners.approve');
+    Route::post('/otso-panalo/games/{game}/cancel', [OtsoPanaloController::class, 'cancel'])->whereNumber('game')->name('otso.games.cancel');
+    Route::post('/otso-panalo/games/{game}/import-bets', [OtsoPanaloController::class, 'importBets'])->whereNumber('game')->middleware('throttle:10,1')->name('otso.bets.import');
+    Route::get('/otso-panalo/games/{game}/bets.pdf', [OtsoPanaloController::class, 'pdf'])->whereNumber('game')->middleware('throttle:10,1')->name('otso.bets.pdf');
     Route::get('/settings/users', [SettingsUserController::class, 'index'])->name('settings.users.index');
     Route::get('/settings/users/create', [SettingsUserController::class, 'create'])->name('settings.users.create');
     Route::post('/settings/users', [SettingsUserController::class, 'store'])->name('settings.users.store');

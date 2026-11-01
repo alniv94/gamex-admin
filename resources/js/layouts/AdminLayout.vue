@@ -3,6 +3,11 @@ import { usePermissions } from '@/composables/usePermissions';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
+import {
+    index as otsoGames,
+    bets as otsoBets,
+    configurations as otsoConfigs,
+} from '@/actions/App/Http/Controllers/OtsoPanaloController';
 import { index as cashierIndex } from '@/actions/App/Http/Controllers/PlayerCashierController';
 import {
     index as playerList,
@@ -47,6 +52,23 @@ const endingNavigation = computed(() =>
     ].filter((item) => can(item.permission)),
 );
 const firstName = computed(() => user.value?.name?.trim().split(/\s+/)[0] || 'Administrator');
+const otsoNavigation = computed(() =>
+    [
+        { title: 'Games', icon: 'mdi-basketball', permission: 'Otso Panalo', route: otsoGames() },
+        {
+            title: 'Bets',
+            icon: 'mdi-ticket-confirmation-outline',
+            permission: 'Otso Panalo',
+            route: otsoBets(),
+        },
+        {
+            title: 'Game Configs',
+            icon: 'mdi-cog-outline',
+            permission: 'Otso Panalo Game Types',
+            route: otsoConfigs(),
+        },
+    ].filter((item) => can(item.permission)),
+);
 const { width } = useDisplay();
 const drawer = ref(width.value >= 1264);
 const openedGroups = ref(['players', 'settings']);
@@ -202,6 +224,23 @@ async function logout() {
                             :src="`/images/navigation/${item.icon}.png`"
                             alt=""
                             class="navigation-icon"
+                    /></template>
+                    <v-list-item-title>{{ item.title }}</v-list-item-title>
+                </v-list-item>
+                <v-list-subheader v-if="otsoNavigation.length">Otso Panalo Game</v-list-subheader>
+                <v-list-item
+                    v-for="item in otsoNavigation"
+                    :key="item.title"
+                    :href="item.route.url"
+                    color="primary"
+                    :active="page.url.split('?')[0].startsWith(item.route.url)"
+                    @click.prevent="
+                        router.visit(item.route);
+                        drawer = width >= 1264;
+                    "
+                >
+                    <template #prepend
+                        ><v-icon :icon="item.icon" color="primary" class="navigation-icon"
                     /></template>
                     <v-list-item-title>{{ item.title }}</v-list-item-title>
                 </v-list-item>

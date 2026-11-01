@@ -10,19 +10,19 @@ It includes search, filters, sorting, pagination, CSV export, duplicate-name che
 
 The list retains the original white card, refresh/export toolbar, search field, filter dialog, cyan Details action, verification chips, Other Details menu, and pagination. Details open in a separate tab. Dates display in `Asia/Manila`; date filters include the selected Philippine calendar days and query their corresponding UTC boundaries.
 
-| Query parameter | Default | Accepted values / behavior |
-| --- | --- | --- |
-| `search` | Empty | Name, mobile number, email, or username; maximum 100 characters |
-| `status` | `Active` | `All`, `Active`, `Inactive` |
-| `account_verified` | `Files Submitted` | `All`, `Verified`, `Pending`, `Files Submitted`, `Rejected` |
-| `type` | `Players` in the UI | `Players`, `Duplicate Players` |
-| `date_from` | `2024-07-01` | Optional `YYYY-MM-DD` registration date |
-| `date_to` | Today in Manila | Optional `YYYY-MM-DD`; must be on or after `date_from` when both are supplied |
-| `sort` | `id` | `id`, `name`, `account_verified`, `verified_at`, `created_at` |
-| `direction` | `desc` | `asc`, `desc` |
-| `per_page` | `10` | `5`, `10`, `25`, `50`, `100` |
-| `page` | `1` | Pagination page |
-| `duplicate_of` | None | Target player ID used to find other matching players |
+| Query parameter    | Default             | Accepted values / behavior                                                    |
+| ------------------ | ------------------- | ----------------------------------------------------------------------------- |
+| `search`           | Empty               | Name, mobile number, email, or username; maximum 100 characters               |
+| `status`           | `Active`            | `All`, `Active`, `Inactive`                                                   |
+| `account_verified` | `Files Submitted`   | `All`, `Verified`, `Pending`, `Files Submitted`, `Rejected`                   |
+| `type`             | `Players` in the UI | `Players`, `Duplicate Players`                                                |
+| `date_from`        | `2024-07-01`        | Optional `YYYY-MM-DD` registration date                                       |
+| `date_to`          | Today in Manila     | Optional `YYYY-MM-DD`; must be on or after `date_from` when both are supplied |
+| `sort`             | `id`                | `id`, `name`, `account_verified`, `verified_at`, `created_at`                 |
+| `direction`        | `desc`              | `asc`, `desc`                                                                 |
+| `per_page`         | `10`                | `5`, `10`, `25`, `50`, `100`                                                  |
+| `page`             | `1`                 | Pagination page                                                               |
+| `duplicate_of`     | None                | Target player ID used to find other matching players                          |
 
 Search is debounced by 350 milliseconds. Filtering or sorting starts from the first page. Refresh reloads the current filters. Export streams **all matching rows**, with UTF-8 encoding and the filename `players-list-report-YYYY-MM-DD.csv`; it is not limited to the visible page. Cells beginning with spreadsheet formula prefixes are escaped.
 
@@ -38,11 +38,11 @@ Personal information includes KYC/account status, identity and contact fields, a
 
 The activity tabs are scoped to the selected target player:
 
-| Tab | Data source |
-| --- | --- |
-| Transactions | Existing `player_wallet_transactions` and transaction-type labels |
-| Player Logs | Imported `admin_player_logs` |
-| Admin Logs | Imported `admin_player_legacy_logs` combined with current `admin_player_audits` and administrator names |
+| Tab          | Data source                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| Transactions | Existing `player_wallet_transactions` and transaction-type labels                                       |
+| Player Logs  | Imported `admin_player_logs`                                                                            |
+| Admin Logs   | Imported `admin_player_legacy_logs` combined with current `admin_player_audits` and administrator names |
 
 Activity queries accept `tab` (`transactions`, `player_logs`, `admin_logs`), `activity_search` (maximum 100 characters), optional `activity_date_from` / `activity_date_to` in `YYYY-MM-DD`, and the same page sizes as the list. Results default to ten rows, newest first. The historical Admin Logs view excludes `verified_cashin` and `approved_cashin`, matching the legacy detail screen; those records remain preserved in the imported table.
 
@@ -68,18 +68,18 @@ Fund-account evaluation requires permissions **1 + 23**. Only active accounts in
 
 These are same-origin web routes using the administrator session. Mutations require CSRF protection and use Inertia forms with Wayfinder-generated route helpers. Successful mutations redirect to the detail page with HTTP **303** and an Inertia success message. Browser validation errors return to the form; JSON requests receive **422** with field errors. Stale-state errors use the `player` field.
 
-| Method and path | Permission IDs | Input / response |
-| --- | --- | --- |
-| `GET /players/list` | 1 | List filters above; renders `players/List` |
-| `GET /players/export` | 1 | Same filters; streamed CSV download |
-| `GET /player/{player}` | 1 | Activity filters above; renders `players/Details` |
-| `GET /player/{player}/duplicates` | 1 | Matching-player list with `duplicate_of` set to the selected ID |
-| `GET /players/{player}/ndrp` | 1 | JSON lookup result; limited to 30 requests per minute |
-| `GET /players/{player}/images/{kind}` | 1 | Private image; `kind` is `selfie` or `valid_id` |
-| `POST /players/{player}/verify` | 1 + 23 | `expected`: current `Pending` or `Files Submitted` status |
-| `POST /players/{player}/reject` | 1 + 23 | `expected`, `reject_reason_id`: active reason ID |
-| `PUT /players/{player}/settings/{setting}` | 1 + 24 | `enabled`: boolean, `expected`: current stored setting; `reason` required for account deactivation |
-| `POST /players/{player}/fund-accounts/{fund}/{action}` | 1 + 23 | `action`: `verify` or `reject`; `reason` required for rejection |
+| Method and path                                        | Permission IDs | Input / response                                                                                   |
+| ------------------------------------------------------ | -------------- | -------------------------------------------------------------------------------------------------- |
+| `GET /players/list`                                    | 1              | List filters above; renders `players/List`                                                         |
+| `GET /players/export`                                  | 1              | Same filters; streamed CSV download                                                                |
+| `GET /player/{player}`                                 | 1              | Activity filters above; renders `players/Details`                                                  |
+| `GET /player/{player}/duplicates`                      | 1              | Matching-player list with `duplicate_of` set to the selected ID                                    |
+| `GET /players/{player}/ndrp`                           | 1              | JSON lookup result; limited to 30 requests per minute                                              |
+| `GET /players/{player}/images/{kind}`                  | 1              | Private image; `kind` is `selfie` or `valid_id`                                                    |
+| `POST /players/{player}/verify`                        | 1 + 23         | `expected`: current `Pending` or `Files Submitted` status                                          |
+| `POST /players/{player}/reject`                        | 1 + 23         | `expected`, `reject_reason_id`: active reason ID                                                   |
+| `PUT /players/{player}/settings/{setting}`             | 1 + 24         | `enabled`: boolean, `expected`: current stored setting; `reason` required for account deactivation |
+| `POST /players/{player}/fund-accounts/{fund}/{action}` | 1 + 23         | `action`: `verify` or `reject`; `reason` required for rejection                                    |
 
 `setting` accepts `betting`, `cashin`, `cashout`, or `account`. For account changes, `expected` is `Active` or `Inactive`; for the other controls it is `Enabled` or `Disabled`. A null control is presented to the setting workflow as `Disabled`.
 
@@ -101,17 +101,17 @@ Missing permissions return **403**. Missing players, a fund account belonging to
 
 Configure the existing target/legacy connections as described in [migration.md](migration.md), then set the following in the private `.env`. `.env.example` contains empty integration placeholders; production credentials belong only in the environment.
 
-| Variable | Purpose |
-| --- | --- |
-| `LEGACY_SOURCE` | Identity-mapping/import source name; defaults to `gamexsports-local` and must match the existing player mappings |
-| `PLAYER_MEDIA_ROOT` | Absolute path to the player portal's private media root, usually its `storage/app/private` directory |
-| `PAGCOR_BASE_URL` | HTTPS provider API base URL; the client appends `/GetAll` |
-| `PAGCOR_AES_KEY` | Existing provider encryption key, exactly 16 characters |
-| `PAGCOR_SIGN_KEY` | Existing provider member ID, exactly 16 characters |
-| `ADMIN_SMS_DRIVER` | `m360` for delivery; `capture` for local/testing use |
-| `M360_APP_KEY`, `M360_APP_SECRET`, `M360_MASK` | Existing SMS provider configuration |
-| `QUEUE_CONNECTION` | Default queue connection; use `database` for admin workers. Player notices explicitly select `database` even if this default differs |
-| `DB_QUEUE_TABLE` | Defaults to the admin-owned `admin_jobs`; keep separate from the player application's queue |
+| Variable                                       | Purpose                                                                                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `LEGACY_SOURCE`                                | Identity-mapping/import source name; defaults to `gamexsports-local` and must match the existing player mappings                     |
+| `PLAYER_MEDIA_ROOT`                            | Absolute path to the player portal's private media root, usually its `storage/app/private` directory                                 |
+| `PAGCOR_BASE_URL`                              | HTTPS provider API base URL; the client appends `/GetAll`                                                                            |
+| `PAGCOR_AES_KEY`                               | Existing provider encryption key, exactly 16 characters                                                                              |
+| `PAGCOR_SIGN_KEY`                              | Existing provider member ID, exactly 16 characters                                                                                   |
+| `ADMIN_SMS_DRIVER`                             | `m360` for delivery; `capture` for local/testing use                                                                                 |
+| `M360_APP_KEY`, `M360_APP_SECRET`, `M360_MASK` | Existing SMS provider configuration                                                                                                  |
+| `QUEUE_CONNECTION`                             | Default queue connection; use `database` for admin workers. Player notices explicitly select `database` even if this default differs |
+| `DB_QUEUE_TABLE`                               | Defaults to the admin-owned `admin_jobs`; keep separate from the player application's queue                                          |
 
 ### Private images
 
@@ -169,15 +169,15 @@ Existing target fund review status/default/update time and verification-processi
 
 The execute and full comparison completed with the following counts:
 
-| Legacy source | Admin target | Verified rows |
-| --- | --- | ---: |
-| `players` (selected status/control fields) | `admin_player_legacy_states` | 73,050 |
-| `player_verification_details` | `admin_player_verifications` | 17,748 |
-| `player_reject_reasons` | `admin_player_reject_reasons` | 39 |
-| `banks` | `admin_player_banks` | 8 |
-| `bank_accounts` | `admin_player_fund_accounts` | 1,411 |
-| `admin_user_logs` where `player_id > 0` | `admin_player_legacy_logs` | 67,325 |
-| `player_logs` | `admin_player_logs` | 1,564,395 |
+| Legacy source                              | Admin target                  | Verified rows |
+| ------------------------------------------ | ----------------------------- | ------------: |
+| `players` (selected status/control fields) | `admin_player_legacy_states`  |        73,050 |
+| `player_verification_details`              | `admin_player_verifications`  |        17,748 |
+| `player_reject_reasons`                    | `admin_player_reject_reasons` |            39 |
+| `banks`                                    | `admin_player_banks`          |             8 |
+| `bank_accounts`                            | `admin_player_fund_accounts`  |         1,411 |
+| `admin_user_logs` where `player_id > 0`    | `admin_player_legacy_logs`    |        67,325 |
+| `player_logs`                              | `admin_player_logs`           |     1,564,395 |
 
 `admin_player_audits` stores new review/control changes, including actor, action, before/after values, reason, IP, and UTC timestamp. `admin_player_imports` stores successful verification reports. These have no historical source-table import.
 
@@ -187,15 +187,15 @@ These migrations intentionally refuse destructive rollback because account contr
 
 ## Implementation and verification
 
-| Area | Entry point |
-| --- | --- |
-| Routes, permissions, validation, image/export responses | [PlayerController.php](../app/Http/Controllers/PlayerController.php) |
-| Shared player/detail/activity queries | [PlayerQueries.php](../app/Services/Players/PlayerQueries.php) |
-| Transactional review, account controls, audits | [PlayerWorkflow.php](../app/Services/Players/PlayerWorkflow.php) |
-| Provider request and result cache | [PagcorLookup.php](../app/Services/Players/PagcorLookup.php) |
-| History mapping and comparison | [PlayerManagementImport.php](../app/Services/Legacy/PlayerManagementImport.php) |
-| Queue job | [SendPlayerNotice.php](../app/Jobs/SendPlayerNotice.php) |
-| Vue pages and shared components | [List.vue](../resources/js/pages/players/List.vue), [Details.vue](../resources/js/pages/players/Details.vue), [players components](../resources/js/components/players) |
+| Area                                                    | Entry point                                                                                                                                                            |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routes, permissions, validation, image/export responses | [PlayerController.php](../app/Http/Controllers/PlayerController.php)                                                                                                   |
+| Shared player/detail/activity queries                   | [PlayerQueries.php](../app/Services/Players/PlayerQueries.php)                                                                                                         |
+| Transactional review, account controls, audits          | [PlayerWorkflow.php](../app/Services/Players/PlayerWorkflow.php)                                                                                                       |
+| Provider request and result cache                       | [PagcorLookup.php](../app/Services/Players/PagcorLookup.php)                                                                                                           |
+| History mapping and comparison                          | [PlayerManagementImport.php](../app/Services/Legacy/PlayerManagementImport.php)                                                                                        |
+| Queue job                                               | [SendPlayerNotice.php](../app/Jobs/SendPlayerNotice.php)                                                                                                               |
+| Vue pages and shared components                         | [List.vue](../resources/js/pages/players/List.vue), [Details.vue](../resources/js/pages/players/Details.vue), [players components](../resources/js/components/players) |
 
 Focused checks:
 
@@ -213,13 +213,13 @@ Implementation verification recorded 102 passing admin backend tests and 24 pass
 
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| Players navigation is missing or a route returns 403 | Current administrator status/session and permission 1; review actions also need 23 or 24 as listed above |
-| Submitted player list is empty | Active/KYC/date filters; compare with `All` statuses and the intended registration range |
-| Review returns 503 | A successful import verification report must exist for the configured `LEGACY_SOURCE` |
-| A review reports a stale player or setting | Refresh the detail page and review its latest state before confirming again |
-| Uploaded images are unavailable | `PLAYER_MEDIA_ROOT`, the target player's stored relative paths, file presence/type/size, and filesystem access |
-| NDRP is unavailable or retry fails | HTTPS base URL, existing 16-character credentials, provider connectivity, and response shape |
-| Account changed but SMS has not arrived | Admin database worker, queue configuration, provider settings, and `admin_failed_jobs`; an account update can commit before delivery |
-| Import fails after copying some tables | Review the reported conflict, source availability, identity mappings, and schema compatibility; retain completed batches for a checked rerun |
+| Symptom                                              | Check                                                                                                                                        |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Players navigation is missing or a route returns 403 | Current administrator status/session and permission 1; review actions also need 23 or 24 as listed above                                     |
+| Submitted player list is empty                       | Active/KYC/date filters; compare with `All` statuses and the intended registration range                                                     |
+| Review returns 503                                   | A successful import verification report must exist for the configured `LEGACY_SOURCE`                                                        |
+| A review reports a stale player or setting           | Refresh the detail page and review its latest state before confirming again                                                                  |
+| Uploaded images are unavailable                      | `PLAYER_MEDIA_ROOT`, the target player's stored relative paths, file presence/type/size, and filesystem access                               |
+| NDRP is unavailable or retry fails                   | HTTPS base URL, existing 16-character credentials, provider connectivity, and response shape                                                 |
+| Account changed but SMS has not arrived              | Admin database worker, queue configuration, provider settings, and `admin_failed_jobs`; an account update can commit before delivery         |
+| Import fails after copying some tables               | Review the reported conflict, source availability, identity mappings, and schema compatibility; retain completed batches for a checked rerun |
