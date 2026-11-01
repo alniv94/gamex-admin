@@ -9,6 +9,7 @@ import EndingPager from '../../components/ending/EndingPager.vue';
 import EndingLogs from '../../components/ending/EndingLogs.vue';
 import GameForm from '../../components/ending/GameForm.vue';
 import EntityLogo from '../../components/ending/EntityLogo.vue';
+import LuckyFourSwitch from '@/components/lucky-four/LuckyFourSwitch.vue';
 import type { AdminPageProps } from '../../types';
 import type {
     EndingGame,
@@ -41,6 +42,7 @@ const props = defineProps<{
     cardBets?: Bet[];
     cardThreshold: number;
     cardAmountFilter: number | null;
+    luckyFourReady: boolean;
 }>();
 const page = usePage<AdminPageProps>();
 const { can } = usePermissions();
@@ -360,75 +362,85 @@ function viewCard(card: GameCard) {
                         </div>
                     </dl>
                     <div class="ending-game-actions">
+                        <section class="ending-control-row" aria-labelledby="lucky-four-heading">
+                            <div class="ending-control-copy">
+                                <div class="ending-control-heading">
+                                    <v-icon icon="mdi-numeric-4-box-outline" size="20" />
+                                    <h2 id="lucky-four-heading">Lucky Four</h2>
+                                </div>
+                                <p>Use this game's four quarter results for Lucky Four.</p>
+                            </div>
+                            <LuckyFourSwitch
+                                :game="game"
+                                :ready="luckyFourReady"
+                                :scheduled="scheduled"
+                            />
+                        </section>
                         <section
-                            class="ending-action-panel ending-action-panel--betting"
+                            class="ending-control-row"
                             aria-labelledby="ending-betting-heading"
                         >
-                            <div class="ending-action-heading">
-                                <span class="ending-action-icon"
-                                    ><v-icon icon="mdi-lock-outline" size="21"
-                                /></span>
-                                <h2 id="ending-betting-heading">Betting Control</h2>
+                            <div class="ending-control-copy">
+                                <div class="ending-control-heading">
+                                    <v-icon icon="mdi-lock-outline" size="20" />
+                                    <h2 id="ending-betting-heading">Betting Control</h2>
+                                    <span
+                                        class="ending-control-status"
+                                        :class="
+                                            game.betting === 'Enabled'
+                                                ? 'ending-control-status--open'
+                                                : 'ending-control-status--closed'
+                                        "
+                                    >
+                                        {{
+                                            game.betting === 'Enabled'
+                                                ? 'Accepting bets'
+                                                : 'Betting closed'
+                                        }}
+                                    </span>
+                                </div>
+                                <p>Control whether players can place bets on this game.</p>
                             </div>
-                            <span
-                                class="ending-action-status"
-                                :class="
-                                    game.betting === 'Enabled'
-                                        ? 'ending-action-status--open'
-                                        : 'ending-action-status--closed'
-                                "
-                            >
-                                {{
-                                    game.betting === 'Enabled' ? 'Accepting bets' : 'Betting closed'
-                                }}
-                            </span>
-                            <p class="ending-action-description">
-                                Control whether players can place bets on this game.
-                            </p>
                             <v-btn
                                 v-if="can('Ending Game Settings')"
-                                variant="flat"
+                                variant="outlined"
+                                size="small"
                                 :color="game.betting === 'Enabled' ? '#a85b00' : '#23834b'"
                                 :prepend-icon="
                                     game.betting === 'Enabled'
                                         ? 'mdi-lock-outline'
                                         : 'mdi-lock-open-outline'
                                 "
-                                block
-                                class="ending-action-button"
+                                class="ending-control-button"
                                 :disabled="busy || (!scheduled && game.betting !== 'Enabled')"
                                 @click="confirmBetting"
                                 >{{
                                     game.betting === 'Enabled' ? 'Close Betting' : 'Open Betting'
                                 }}</v-btn
                             >
-                            <p v-else class="ending-action-access">
-                                You have view access to betting settings.
-                            </p>
+                            <span v-else class="ending-control-access">View only</span>
                         </section>
                         <section
-                            class="ending-action-panel ending-action-panel--results"
+                            class="ending-control-row"
                             aria-labelledby="ending-results-heading"
                         >
-                            <div class="ending-action-heading">
-                                <span class="ending-action-icon"
-                                    ><v-icon icon="mdi-scoreboard-outline" size="21"
-                                /></span>
-                                <h2 id="ending-results-heading">Game Results</h2>
+                            <div class="ending-control-copy">
+                                <div class="ending-control-heading">
+                                    <v-icon icon="mdi-scoreboard-outline" size="20" />
+                                    <h2 id="ending-results-heading">Game Results</h2>
+                                    <span class="ending-control-count"
+                                        >{{ results.length }} of 4 quarters recorded</span
+                                    >
+                                </div>
+                                <p>Enter official scores and record the winning combinations.</p>
                             </div>
-                            <span class="ending-action-status ending-action-status--results"
-                                >{{ results.length }} of 4 quarters recorded</span
-                            >
-                            <p class="ending-action-description">
-                                Enter official scores and record the winning combinations.
-                            </p>
                             <v-btn
                                 v-if="can('Ending Game Result Creation')"
                                 variant="flat"
                                 color="#007fae"
+                                size="small"
                                 prepend-icon="mdi-plus"
-                                block
-                                class="ending-action-button"
+                                class="ending-control-button"
                                 :disabled="busy || results.length >= 4"
                                 @click="resultFormOpen()"
                                 >Create Result</v-btn
@@ -437,46 +449,19 @@ function viewCard(card: GameCard) {
                                 v-else
                                 variant="outlined"
                                 color="primary"
+                                size="small"
                                 prepend-icon="mdi-scoreboard-outline"
-                                block
-                                class="ending-action-button"
+                                class="ending-control-button"
                                 @click="tab = 'results'"
                                 >View Results</v-btn
                             >
                         </section>
-                        <section
-                            class="ending-action-panel ending-action-panel--files"
-                            aria-labelledby="ending-files-heading"
-                        >
-                            <div class="ending-action-heading">
-                                <span class="ending-action-icon"
-                                    ><v-icon icon="mdi-file-document-outline" size="21"
-                                /></span>
-                                <h2 id="ending-files-heading">Card Files</h2>
-                            </div>
-                            <span class="ending-action-status ending-action-status--closed"
-                                >PDF generation unavailable</span
-                            >
-                            <div class="ending-file-progress">
-                                <span
-                                    >{{ generatedCards }} of {{ totalCards }} cards generated</span
-                                >
-                                <v-progress-linear
-                                    :model-value="
-                                        totalCards ? (generatedCards / totalCards) * 100 : 0
-                                    "
-                                    color="#a8b4c0"
-                                    bg-color="#e8edf1"
-                                    height="5"
-                                    rounded
-                                    aria-label="Generated card files"
-                                />
-                            </div>
-                            <p class="ending-action-description">
-                                PDF generation and email delivery are unavailable.
-                            </p>
-                        </section>
                     </div>
+                    <p class="ending-file-note">
+                        <v-icon icon="mdi-file-document-outline" size="16" />
+                        <span>Card files: {{ generatedCards }} of {{ totalCards }} generated.</span>
+                        <span>PDF generation and email delivery are unavailable.</span>
+                    </p>
                 </v-card-text>
             </v-card>
             <v-card class="mb-5">
@@ -1220,7 +1205,7 @@ function viewCard(card: GameCard) {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
-    margin: 0 0 20px;
+    margin: 0;
     padding: 18px 0;
     border-top: 1px solid #e8edf1;
     border-bottom: 1px solid #e8edf1;
@@ -1241,129 +1226,85 @@ function viewCard(card: GameCard) {
     overflow-wrap: anywhere;
 }
 .ending-game-actions {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-}
-.ending-action-panel {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+}
+.ending-control-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid #e8edf1;
+}
+.ending-control-copy {
     min-width: 0;
-    padding: 18px;
-    border: 1px solid #e3e8ed;
-    border-top-width: 3px;
-    border-radius: 8px;
 }
-.ending-action-panel--betting {
-    border-top-color: #d99b45;
-    background: #fffdf8;
-}
-.ending-action-panel--results {
-    border-top-color: #00b6fe;
-    background: #f8fcff;
-}
-.ending-action-panel--files {
-    border-top-color: #b8c3ce;
-    background: #f8f9fb;
-}
-.ending-action-heading {
+.ending-control-heading {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 14px;
 }
-.ending-action-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+.ending-control-heading > .v-icon {
+    color: #73808d;
 }
-.ending-action-panel--betting .ending-action-icon {
-    color: #a85b00;
-    background: #fff0d8;
-}
-.ending-action-panel--results .ending-action-icon {
-    color: #007fae;
-    background: #e4f5ff;
-}
-.ending-action-panel--files .ending-action-icon {
-    color: #748291;
-    background: #e9edf2;
-}
-.ending-action-heading h2 {
+.ending-control-heading h2 {
     margin: 0;
     color: #263441;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.4;
 }
-.ending-action-status {
+.ending-control-status {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 9px;
-    border-radius: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
     font-size: 10px;
     font-weight: 500;
     line-height: 1.5;
 }
-.ending-action-status--open {
+.ending-control-status--open {
     color: #247345;
     background: #e7f4eb;
 }
-.ending-action-status--closed {
+.ending-control-status--closed {
     color: #647180;
     background: #e9edf2;
 }
-.ending-action-status--results {
-    color: #126f98;
-    background: #e4f3fb;
+.ending-control-count {
+    color: #687582;
+    font-size: 11px;
 }
-.ending-action-description {
-    margin: 12px 0 18px;
+.ending-control-copy p {
+    margin: 5px 0 0 30px;
     color: #6b7784;
     font-size: 12px;
     line-height: 1.7;
 }
-.ending-action-button {
-    margin-top: auto;
-    min-height: 40px;
-    height: auto !important;
+.ending-control-button {
+    min-width: 156px;
+    min-height: 36px;
 }
-.ending-action-button :deep(.v-btn__content) {
-    padding-block: 10px;
-    white-space: normal;
+.ending-control-button :deep(.v-btn__content) {
     font-weight: 500;
 }
-.ending-action-access {
-    margin: auto 0 0;
-    color: #84909c;
+.ending-control-access {
+    color: #687582;
     font-size: 11px;
     line-height: 1.6;
 }
-.ending-file-progress {
-    display: grid;
-    gap: 10px;
-    align-self: stretch;
-    margin-top: 16px;
-    color: #5d6b79;
-    font-size: 12px;
-}
-.ending-action-panel--files .ending-action-description {
-    margin-bottom: 0;
+.ending-file-note {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin: 14px 0 0;
+    color: #687582;
     font-size: 11px;
-}
-@media (max-width: 959px) {
-    .ending-game-actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .ending-action-panel--files {
-        grid-column: 1 / -1;
-    }
+    line-height: 1.6;
 }
 .ending-result-header {
     display: flex;
@@ -1506,9 +1447,21 @@ function viewCard(card: GameCard) {
         grid-template-columns: 1fr;
         gap: 16px;
     }
-    .ending-game-actions {
+    .ending-control-row {
         grid-template-columns: 1fr;
         gap: 12px;
+    }
+    .ending-control-row > :last-child {
+        justify-self: start;
+        margin-left: 30px;
+        max-width: calc(100% - 30px);
+    }
+    .ending-control-heading {
+        column-gap: 8px;
+    }
+    .ending-control-count {
+        flex-basis: 100%;
+        margin-left: 30px;
     }
     .ending-result-heading {
         gap: 10px;

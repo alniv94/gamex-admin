@@ -17,6 +17,7 @@ use App\Models\EndingGame;
 use App\Models\EndingGameResult;
 use App\Services\Ending\EndingQueries;
 use App\Services\Ending\EndingWorkflow;
+use App\Services\LuckyFour\LuckyFourQueries;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -79,7 +80,7 @@ class EndingGameController extends Controller
         ]);
     }
 
-    public function show(Request $request, EndingGame $game): Response
+    public function show(Request $request, EndingGame $game, LuckyFourQueries $luckyFour): Response
     {
         Gate::authorize('Ending Games');
         $request->validate(['card_id' => ['nullable', 'integer', 'min:1'], 'bet_amount_id' => ['nullable', 'integer', 'min:1']]);
@@ -89,6 +90,7 @@ class EndingGameController extends Controller
         $cardThreshold = max(0, (int) (EndingConfig::query()->where('config_name', 'Card Allow Open')->value('config_value') ?? 50));
 
         return Inertia::render('ending/Game', $this->queries->lookups() + [
+            'luckyFourReady' => fn () => $luckyFour->ready(),
             'game' => fn () => $game->loadMissing(['teamA.league', 'teamB', 'gameStatus'])->summary(),
             'amounts' => fn () => $game->betAmounts()->withCount([
                 'cards', 'cards as disabled_cards_count' => fn (Builder $cards) => $cards->where('betting', 'Disabled'),

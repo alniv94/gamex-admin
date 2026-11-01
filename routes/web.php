@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
+use App\Http\Controllers\LuckyFourController;
 use App\Http\Controllers\OtsoPanaloController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
@@ -21,6 +22,15 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/lucky-four/games', [LuckyFourController::class, 'index'])->name('lucky-four.games.index');
+    Route::get('/lucky-four/games/{game}', [LuckyFourController::class, 'show'])->whereNumber('game')->name('lucky-four.games.show');
+    Route::put('/ending/games/{game}/lucky-four', [LuckyFourController::class, 'toggle'])->whereNumber('game')->name('lucky-four.games.toggle');
+    Route::post('/lucky-four/games/{game}/jackpot', [LuckyFourController::class, 'refresh'])->whereNumber('game')->name('lucky-four.games.refresh');
+    Route::post('/lucky-four/games/{game}/winners/{action}', [LuckyFourController::class, 'winner'])->whereNumber('game')->whereIn('action', ['verify', 'unverify', 'approve'])->name('lucky-four.games.winner');
+    Route::get('/lucky-four/settings', [LuckyFourController::class, 'settings'])->name('lucky-four.settings');
+    Route::put('/lucky-four/settings', [LuckyFourController::class, 'updateSettings'])->name('lucky-four.settings.update');
+    Route::get('/lucky-four/bets', [LuckyFourController::class, 'bets'])->name('lucky-four.bets.index');
+    Route::get('/lucky-four/bets/export', [LuckyFourController::class, 'exportBets'])->middleware('throttle:10,1')->name('lucky-four.bets.export');
     Route::get('/otso-panalo/games', [OtsoPanaloController::class, 'index'])->name('otso.games.index');
     Route::get('/otso-panalo/configs', [OtsoPanaloController::class, 'configurations'])->name('otso.configs.index');
     Route::post('/otso-panalo/configs', [OtsoPanaloController::class, 'storeConfig'])->name('otso.configs.store');

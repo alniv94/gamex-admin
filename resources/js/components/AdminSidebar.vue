@@ -2,6 +2,11 @@
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import {
+    index as luckyFourGames,
+    bets as luckyFourBets,
+    settings as luckyFourSettings,
+} from '@/actions/App/Http/Controllers/LuckyFourController';
+import {
     index as otsoGames,
     bets as otsoBets,
     configurations as otsoConfigs,
@@ -28,7 +33,7 @@ const emit = defineEmits<{ expand: [] }>();
 const page = usePage<AdminPageProps>();
 const { can, canAny } = usePermissions();
 const { mobile } = useDisplay();
-const openedGroups = ref(['players', 'ending', 'otso', 'settings']);
+const openedGroups = ref(['players', 'ending', 'otso', 'lucky-four', 'settings']);
 const currentPath = computed(() => page.url.split(/[?#]/)[0]);
 const playerNavigation = computed(() =>
     [
@@ -132,6 +137,31 @@ const navigationSections = computed(() =>
                     icon: 'mdi-cog-outline',
                     permission: 'Otso Panalo Game Types',
                     route: otsoConfigs(),
+                },
+            ].filter((item) => can(item.permission)),
+        },
+        {
+            value: 'lucky-four',
+            title: 'Lucky Four',
+            icon: 'mdi-clover',
+            items: [
+                {
+                    title: 'Games',
+                    icon: 'mdi-basketball',
+                    permission: 'Lucky Four',
+                    route: luckyFourGames(),
+                },
+                {
+                    title: 'Bets',
+                    icon: 'mdi-ticket-confirmation-outline',
+                    permission: 'Lucky Four',
+                    route: luckyFourBets(),
+                },
+                {
+                    title: 'Prize Settings',
+                    icon: 'mdi-cog-outline',
+                    permission: 'Lucky Four Prizes Settings',
+                    route: luckyFourSettings(),
                 },
             ].filter((item) => can(item.permission)),
         },

@@ -208,6 +208,9 @@ class EndingWorkflow
                 abort_unless($before !== null, 404);
                 $this->check((int) $before->quarter_id === $quarter, 'quarter_id', 'A result cannot move to another quarter.');
                 $this->check(! EndingGameWinner::forGame($id)->where('quarter_id', $quarter)->exists(), 'result', 'Unverify all winners for this quarter before correcting the score. Approved winners lock the result.');
+                $this->check(! DB::table('lucky_four_winners as w')->join('lucky_four_bets as b', 'b.ending_bet_id', '=', 'w.ending_bet_id')
+                    ->where('b.game_id', $id)->where(fn ($q) => $q->whereIn('w.winner_status', ['Verified', 'Approved'])->orWhere('w.prize_released', 'Yes'))->exists(),
+                    'result', 'Unverify Lucky Four winners before correcting scores. Approved Lucky Four prizes lock all quarters.');
                 $this->check($request->filled('reason'), 'reason', 'Explain why this result is being corrected.');
             } else {
                 $this->check(! $this->results($id)->where('quarter_id', $quarter)->exists(), 'quarter_id', 'This quarter already has a result.');
@@ -219,7 +222,7 @@ class EndingWorkflow
             $combination = ($a % 10).'-'.($b % 10);
             $slot = EndingSlot::query()->where('slot', $combination)->first();
             $this->check($slot !== null, 'result', 'The winning combination is missing from slot configuration.');
-            $changes = ['game_id' => $id, 'quarter_id' => $quarter, 'team_a_score' => $a, 'team_b_score' => $b, 'slot_id' => $slot->id];
+            $changes = ['game_id' => $id, 'quarter_id' => $quarter, 'team_a_score' => $a, 'team_b_score' => $b, 'slot_id' => $slot->id, 'lucky_four_result' => max($a, $b) % 10];
             $beforeSnapshot = $before?->getAttributes();
             if ($resultId) {
                 $before->update($changes + ['updated_at' => now()]);

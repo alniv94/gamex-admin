@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class EndingGameResult extends EndingRecord
 {
-    protected $fillable = ['game_id', 'quarter_id', 'team_a_score', 'team_b_score', 'slot_id', 'created_at', 'updated_at'];
+    protected $fillable = ['game_id', 'quarter_id', 'team_a_score', 'team_b_score', 'slot_id', 'lucky_four_result', 'created_at', 'updated_at'];
 
     /** @return array<string, string> */
     protected function casts(): array
