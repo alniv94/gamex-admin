@@ -181,12 +181,12 @@ class OtsoPanaloController extends Controller
     public function bets(Request $request): Response
     {
         Gate::authorize('Otso Panalo');
-        $filters = $this->filters($request);
+        $filters = $this->filters($request, array_keys(OtsoPanaloQueries::BET_SORT_COLUMNS)) + ['sort' => 'created_at', 'direction' => 'desc'];
 
         return Inertia::render('otso/Bets', [
-            'bets' => $this->queries->filteredBets($filters)->paginate($request->integer('per_page', 25))->withQueryString()->through(OtsoPanaloQueries::publicData(...)),
+            'bets' => $this->queries->filteredBets($filters)->paginate($request->integer('per_page', 10))->withQueryString()->through(OtsoPanaloQueries::publicData(...)),
             'games' => $this->queries->games()->orderByDesc('e.schedule')->limit(500)->get()->map(OtsoPanaloQueries::publicData(...)),
-            'filters' => $filters,
+            'filters' => $filters, 'migrationReady' => $this->ready(),
         ]);
     }
 
@@ -216,7 +216,7 @@ class OtsoPanaloController extends Controller
     public function exportBets(Request $request): StreamedResponse
     {
         Gate::authorize('Otso Panalo');
-        $query = $this->queries->filteredBets($this->filters($request));
+        $query = $this->queries->filteredBets($this->filters($request, array_keys(OtsoPanaloQueries::BET_SORT_COLUMNS)));
 
         return response()->streamDownload(function () use ($query): void {
             $stream = fopen('php://output', 'wb');
@@ -264,11 +264,14 @@ class OtsoPanaloController extends Controller
         return $config ? OtsoPanaloQueries::publicData($config) : null;
     }
 
-    /** @return array<string, mixed> */
-    private function filters(Request $request): array
+    /**
+     * @param  list<string>|null  $sortColumns
+     * @return array<string, mixed>
+     */
+    private function filters(Request $request, ?array $sortColumns = null): array
     {
         $rules = ['search' => ['nullable', 'string', 'max:200'], 'status' => ['nullable', 'integer', 'between:1,4'],
-            'sort' => ['nullable', Rule::in(['id', 'schedule', 'betting_deadline', 'betting', 'game_status', 'bet_amount', 'jackpot_prize', 'created_at'])],
+            'sort' => ['nullable', Rule::in($sortColumns ?? ['id', 'schedule', 'betting_deadline', 'betting', 'game_status', 'bet_amount', 'jackpot_prize', 'created_at'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'game_id' => ['nullable', 'integer', 'exists:otso_panalo_games,id'], 'filter_by' => ['nullable', 'in:Bet Date,Game Schedule'],
             'date_from' => ['nullable', 'date_format:Y-m-d'], 'date_to' => ['nullable', 'date_format:Y-m-d'],

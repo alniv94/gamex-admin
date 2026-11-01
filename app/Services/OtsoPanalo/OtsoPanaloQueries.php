@@ -9,6 +9,8 @@ use stdClass;
 
 class OtsoPanaloQueries
 {
+    public const BET_SORT_COLUMNS = ['id' => 'b.id', 'amount' => 'b.amount', 'refunded' => 'b.refunded', 'created_at' => 'b.created_at'];
+
     public function games(): Builder
     {
         return DB::table('otso_panalo_games as g')
@@ -45,12 +47,13 @@ class OtsoPanaloQueries
             ->leftJoin('otso_panalo_bet_types as t', 't.id', '=', 'b.bet_type_id')
             ->leftJoin('otso_panalo_winners as w', 'w.bet_id', '=', 'b.id')
             ->leftJoin('otso_panalo_game_results as r', 'r.game_id', '=', 'g.id')
-            ->select('b.*', 'p.username', 'p.name as player_name', 'e.schedule', 'l.league', 'a.team_name as team_a_name', 'z.team_name as team_b_name',
+            ->select('b.*', 'g.ending_game_id', 'p.username', 'p.name as player_name', 'e.schedule', 'l.league', 'a.team_name as team_a_name', 'z.team_name as team_b_name',
                 'a.team_alias as team_a_alias', 'z.team_alias as team_b_alias', 't.bet_type', 'w.winner_status', 'w.prize_amount', 'w.winner_type_id', 'w.prize_released');
         foreach (OtsoPanaloWorkflow::QUARTERS as $index => $quarter) {
             $alias = 'q'.($index + 1);
             $query->leftJoin('otso_panalo_bet_quarter_results as '.$alias, fn ($join) => $join->on($alias.'.bet_id', '=', 'b.id')->where($alias.'.quarter_number', $index + 1));
             $query->selectRaw("COALESCE({$alias}.quarter_status, CASE WHEN r.status = 'Approved' THEN CASE WHEN NULLIF(TRIM(b.{$quarter}_quarter_combination), '') = NULLIF(TRIM(r.{$quarter}_quarter_result), '') THEN 'Win' ELSE 'Lose' END ELSE NULL END) AS {$quarter}_quarter_status");
+            $query->selectRaw("CASE WHEN r.status = 'Approved' THEN r.{$quarter}_quarter_result ELSE NULL END AS {$quarter}_quarter_result");
         }
 
         return $query;
@@ -73,7 +76,7 @@ class OtsoPanaloQueries
             });
         }
 
-        return $query->orderByDesc('b.created_at')->orderByDesc('b.id');
+        return $query->orderBy(self::BET_SORT_COLUMNS[$filters['sort'] ?? 'created_at'], $filters['direction'] ?? 'desc')->orderByDesc('b.id');
     }
 
     public function winners(int $gameId): Builder

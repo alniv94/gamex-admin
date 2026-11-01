@@ -107,10 +107,17 @@ export interface OtsoResult {
     created_at: string | null;
     approved_at: string | null;
 }
-export interface OtsoBet {
+export interface OtsoBet extends Pick<
+    OtsoResult,
+    | 'first_quarter_result'
+    | 'second_quarter_result'
+    | 'third_quarter_result'
+    | 'fourth_quarter_result'
+> {
     id: number;
     legacy_id: number | null;
     game_id: number;
+    ending_game_id: number;
     player_id: number | null;
     name: string | null;
     username: string | null;
@@ -128,6 +135,8 @@ export interface OtsoBet {
     fourth_quarter_status: string | null;
     team_a_name: string;
     team_b_name: string;
+    team_a_alias: string | null;
+    team_b_alias: string | null;
     league: string;
     schedule: string | null;
     created_at: string | null;

@@ -1,11 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { test, expect as baseExpect } from '@playwright/test';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-test('Otso configuration, fixed jackpot creation, result approval, winners and PDF', async ({
+const expect = baseExpect.configure({ timeout: 15000 });
+
+test('Otso configuration, fixed jackpot, results, winners, bets filters and exports', async ({
     page,
 }, info) => {
-    test.setTimeout(90000);
+    test.setTimeout(210000);
     page.setDefaultTimeout(15000);
     const index = ['desktop', 'tablet', 'mobile'].indexOf(info.project.name) + 1;
     const errors: string[] = [];
@@ -149,5 +151,79 @@ test('Otso configuration, fixed jackpot creation, result approval, winners and P
     const download = await downloaded;
     expect(download.suggestedFilename()).toBe('otso_panalo_bets_' + (900 + index) + '.pdf');
     await page.screenshot({ path: info.outputPath('otso-winners.png'), fullPage: true });
+
+    await page.goto('/otso-panalo/bets');
+    await expect(page.getByText(/Historical Otso Panalo games are being prepared/)).toHaveCount(0);
+    const betTable = page.getByRole('table', { name: 'Bet records', exact: true });
+    await expect(betTable.getByRole('columnheader')).toHaveCount(10);
+    await expect(page.getByText('Total: 6', { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath('otso-bets.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await dialog.getByLabel('Bet Date From', { exact: true }).fill('2026-11-02');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText('Total: 6', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await expect(dialog.getByLabel('Bet Date From', { exact: true })).toHaveValue('');
+    await dialog.getByLabel('Bet Date From', { exact: true }).fill('2026-11-02');
+    await dialog.getByLabel('Bet Date To (Optional)', { exact: true }).fill('2026-11-01');
+    await dialog.getByRole('button', { name: 'Apply Filters', exact: true }).click();
+    await expect(
+        dialog.getByText('The date to field must be a date after or equal to date from.'),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
+    await expect(dialog.getByLabel('Bet Date From', { exact: true })).toHaveValue('');
+    await expect(dialog.getByLabel('Bet Date To (Optional)', { exact: true })).toHaveValue('');
+    await dialog.getByRole('combobox', { name: 'Ending Game', exact: true }).click();
+    await page
+        .getByRole('option')
+        .filter({ hasText: '#' + (8000 + index) + ' /' })
+        .click();
+    await page.screenshot({ path: info.outputPath('otso-bets-filters.png'), fullPage: true });
+    await dialog.getByRole('button', { name: 'Apply Filters', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText('Total: 2', { exact: true })).toBeVisible();
+    const betSearch = page.getByRole('textbox', { name: 'Search bets', exact: true });
+    await betSearch.fill('Browser 3 quarters');
+    await expect(page.getByText('Total: 1', { exact: true })).toBeVisible();
+    await expect(betTable.getByRole('row').last()).toContainText('100.00');
+    await expect(betTable.getByText('Win', { exact: true })).toHaveCount(3);
+    await expect(betTable.getByText('Lose', { exact: true })).toHaveCount(1);
+    await betTable.getByRole('button', { name: /^View bet / }).click();
+    await expect(dialog.getByText('Prize: PHP 100.00', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await betTable.getByRole('button', { name: 'Sort by Amount', exact: true }).click();
+    await expect(page).toHaveURL(
+        (url) =>
+            url.searchParams.get('sort') === 'amount' &&
+            url.searchParams.get('direction') === 'desc',
+    );
+    await betTable.getByRole('button', { name: 'Sort by Amount', exact: true }).click();
+    await expect(page).toHaveURL(
+        (url) =>
+            url.searchParams.get('sort') === 'amount' &&
+            url.searchParams.get('direction') === 'asc',
+    );
+    await expect(
+        betTable.getByRole('columnheader', { name: 'Sort by Amount', exact: true }),
+    ).toHaveAttribute('aria-sort', 'ascending');
+    await page.getByRole('combobox', { name: 'Rows per page', exact: true }).press('ArrowDown');
+    await page.getByRole('option', { name: '20', exact: true }).click();
+    await expect(page).toHaveURL(/per_page=20/);
+    const exported = page.waitForEvent('download');
+    await page.getByRole('link', { name: 'Export CSV', exact: true }).click();
+    const csvDownload = await exported;
+    expect(csvDownload.suggestedFilename()).toBe('otso_panalo_bets.csv');
+    const csv = readFileSync((await csvDownload.path())!, 'utf8');
+    expect(csv).toContain('Browser 3 quarters');
+    expect(csv).not.toContain('Browser 4 quarters');
+    await page.getByRole('button', { name: 'Refresh bets', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeEnabled();
+    await expect(page.getByText('Total: 1', { exact: true })).toBeVisible();
+    await betSearch.fill('');
+    await expect(page.getByText('Total: 2', { exact: true })).toBeVisible();
+    await expect(betSearch).toHaveValue('');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: info.outputPath('otso-bets-filtered.png'), fullPage: true });
     expect(errors).toEqual([]);
 });
