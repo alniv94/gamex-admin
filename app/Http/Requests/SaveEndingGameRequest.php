@@ -11,7 +11,7 @@ class SaveEndingGameRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can($this->routeIs('ending.games.store') ? 'ending.games.create' : 'ending.games.update') ?? false;
+        return $this->user()?->can($this->routeIs('ending.games.store') ? 'Ending Game Create' : 'Ending Game Settings') ?? false;
     }
 
     /**

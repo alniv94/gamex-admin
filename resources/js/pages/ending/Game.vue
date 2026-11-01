@@ -315,7 +315,7 @@ function viewCard(card: GameCard) {
                             <span class="ending-overview-id">Game #{{ game.id }}</span>
                         </div>
                         <v-btn
-                            v-if="can('ending.games.update') && scheduled"
+                            v-if="can('Ending Game Settings') && scheduled"
                             variant="outlined"
                             color="secondary"
                             size="small"
@@ -386,7 +386,7 @@ function viewCard(card: GameCard) {
                                 Control whether players can place bets on this game.
                             </p>
                             <v-btn
-                                v-if="can('ending.games.update')"
+                                v-if="can('Ending Game Settings')"
                                 variant="flat"
                                 :color="game.betting === 'Enabled' ? '#a85b00' : '#23834b'"
                                 :prepend-icon="
@@ -423,7 +423,7 @@ function viewCard(card: GameCard) {
                                 Enter official scores and record the winning combinations.
                             </p>
                             <v-btn
-                                v-if="can('ending.results.manage')"
+                                v-if="can('Ending Game Result Creation')"
                                 variant="flat"
                                 color="#007fae"
                                 prepend-icon="mdi-plus"
@@ -494,7 +494,7 @@ function viewCard(card: GameCard) {
                             title="View all cards (opens in a new tab)"
                             >View All Cards</v-btn
                         ><v-btn
-                            v-if="can('ending.cards.manage')"
+                            v-if="can('Ending Game Bet/Cards Creation')"
                             variant="flat"
                             color="primary"
                             prepend-icon="mdi-plus"
@@ -525,7 +525,7 @@ function viewCard(card: GameCard) {
                             <td>{{ amount.exceeded_cards }}</td>
                             <td class="text-center text-no-wrap">
                                 <v-btn
-                                    v-if="can('ending.cards.manage')"
+                                    v-if="can('Ending Game Bet/Cards Creation')"
                                     icon="mdi-plus-box-multiple-outline"
                                     color="success"
                                     variant="text"
@@ -536,7 +536,7 @@ function viewCard(card: GameCard) {
                                     @click="openCards(amount)"
                                 />
                                 <v-btn
-                                    v-if="can('ending.cards.manage')"
+                                    v-if="can('Ending Game Bet/Cards Creation')"
                                     icon="mdi-minus-box-multiple-outline"
                                     color="#a85b00"
                                     variant="text"
@@ -606,7 +606,7 @@ function viewCard(card: GameCard) {
                                 </td>
                                 <td>
                                     <v-btn
-                                        v-if="can('ending.results.manage')"
+                                        v-if="can('Ending Game Result Creation')"
                                         variant="text"
                                         size="small"
                                         color="primary"
@@ -685,7 +685,11 @@ function viewCard(card: GameCard) {
                                         @click="viewCard(card)"
                                         >View Bets</v-btn
                                     ><v-btn
-                                        v-if="can('ending.cards.manage') && scheduled && !card.bets"
+                                        v-if="
+                                            can('Ending Game Bet/Cards Creation') &&
+                                            scheduled &&
+                                            !card.bets
+                                        "
                                         variant="text"
                                         size="small"
                                         :disabled="busy"
@@ -766,7 +770,10 @@ function viewCard(card: GameCard) {
                                 <td>{{ winner.prize_released || 'No' }}</td>
                                 <td class="text-no-wrap">
                                     <v-btn
-                                        v-if="!winner.winner_id && can('ending.winners.verify')"
+                                        v-if="
+                                            !winner.winner_id &&
+                                            can('Ending Game Winner Verification')
+                                        "
                                         variant="text"
                                         color="primary"
                                         size="small"
@@ -775,7 +782,7 @@ function viewCard(card: GameCard) {
                                         >Verify</v-btn
                                     ><template v-if="winner.winner_status_id === 1"
                                         ><v-btn
-                                            v-if="can('ending.winners.approve')"
+                                            v-if="can('Ending Game Winner Approval 1')"
                                             variant="text"
                                             color="success"
                                             size="small"
@@ -786,7 +793,7 @@ function viewCard(card: GameCard) {
                                             >Approve & Declare</v-btn
                                         ><v-btn
                                             v-if="
-                                                can('ending.winners.verify') &&
+                                                can('Ending Game Winner Verification') &&
                                                 winner.prize_released !== 'Yes'
                                             "
                                             variant="text"

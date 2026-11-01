@@ -5,6 +5,8 @@ use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\SettingsRoleController;
+use App\Http\Controllers\SettingsUserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +19,13 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/settings/users', [SettingsUserController::class, 'index'])->name('settings.users.index');
+    Route::get('/settings/users/create', [SettingsUserController::class, 'create'])->name('settings.users.create');
+    Route::post('/settings/users', [SettingsUserController::class, 'store'])->name('settings.users.store');
+    Route::put('/settings/users/{user}', [SettingsUserController::class, 'update'])->whereNumber('user')->name('settings.users.update');
+    Route::put('/settings/users/{user}/status', [SettingsUserController::class, 'status'])->whereNumber('user')->name('settings.users.status');
+    Route::post('/settings/roles', [SettingsRoleController::class, 'store'])->name('settings.roles.store');
+    Route::put('/settings/roles/{role}', [SettingsRoleController::class, 'update'])->whereNumber('role')->name('settings.roles.update');
     Route::get('/players/{kind}', [PlayerCashierController::class, 'index'])->whereIn('kind', ['cashin', 'cashout'])->name('players.cashier.index');
     Route::get('/players/{kind}/export', [PlayerCashierController::class, 'export'])->whereIn('kind', ['cashin', 'cashout'])->name('players.cashier.export');
     Route::get('/players/{kind}/players', [PlayerCashierController::class, 'players'])->whereIn('kind', ['cashin', 'cashout'])->middleware('throttle:30,1')->name('players.cashier.players');

@@ -39,15 +39,17 @@ Identity conflicts abort the import. Keep administrator IDs available in the tar
 | Invalid/duplicate email                               | users.email null; original profile and encrypted archive preserved                      |
 | Profile birthdate                                     | Exact date, or null for a zero date; raw value stays archived                           |
 | Profile role_id                                       | admin_profiles.legacy_role_id                                                           |
-| admin_access                                          | admin_permissions with original IDs, labels, order, and legacy module names             |
-| Valid admin_user_access assignments                   | Unique admin_user_permissions rows                                                      |
+| admin_access                                          | admin_acl_permissions with original names, module, and module_order                     |
+| Valid admin_user_access assignments                   | admin_model_permissions referencing the active permission IDs                           |
 | All source assignments belonging to an existing admin | Exact rows, including duplicates and invalid IDs, inside that admin's encrypted archive |
 | Assignments referencing nonexistent admins            | Encrypted admin_legacy_exceptions records                                               |
 | login_key, login_verified, OTP rows                   | Excluded from import                                                                    |
 
 The raw user/profile/permission snapshot is encrypted in `admin_profiles.legacy_payload`; a SHA-256 source checksum allows repeat verification. The archive preserves raw email, phone, date, and password values. Do not expose archives through API resources or logs.
 
-The original role ID is retained as evidence; a new role management system is not part of this phase. Existing legacy module names are data, not automatically exposed admin routes.
+Permissions are stored directly in the active ACL catalog. The consolidation migration replaces old aliases and `legacy.*` placeholders in place, preserving permission IDs and direct/role assignments, then removes the duplicate `admin_permissions` and `admin_user_permissions` tables. Future imports use the source names directly. Original spelling is preserved, including source typos. The additional `Manage users and roles` permission remains separate from `Users` viewing access.
+
+The original role ID is retained as import evidence. Current roles and their permissions are managed through Settings. Module names are catalog metadata, not automatically exposed admin routes.
 
 ## Verified local result — 2026-10-29
 

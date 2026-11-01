@@ -11,7 +11,7 @@ class VerifyLegacyAdmins extends Command
 {
     protected $signature = 'legacy:verify-admins';
 
-    protected $description = 'Verify imported administrator identities, hashes, profiles, status, archives, and permission assignments.';
+    protected $description = 'Verify administrator source archives and imported accounts not yet managed through Settings.';
 
     public function handle(AdminImport $import): int
     {
@@ -23,7 +23,10 @@ class VerifyLegacyAdmins extends Command
 
                 return self::FAILURE;
             }
-            $this->info('Every source administrator matches the target.');
+            $this->info('Every source administrator has a verified archive. Unmanaged accounts also match their imported identity and access.');
+            if ($report['managed'] > 0) {
+                $this->info($report['managed'].' accounts have been managed through Settings; their current identity and access are not compared with the legacy baseline.');
+            }
 
             return self::SUCCESS;
         } catch (RuntimeException $exception) {

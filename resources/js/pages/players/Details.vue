@@ -18,8 +18,8 @@ const props = defineProps<{
     filters: Record<string, string>;
 }>();
 const { can } = usePermissions();
-const canVerify = computed(() => can('players.verify'));
-const canSet = computed(() => can('players.settings.update'));
+const canVerify = computed(() => can('Player Verify'));
+const canSet = computed(() => can('Player Settings'));
 const canEvaluate = computed(
     () => canVerify.value && ['Files Submitted', 'Pending'].includes(props.player.account_verified),
 );

@@ -25,7 +25,7 @@ class EndingCatalogController extends Controller
 
     public function teams(Request $request): Response
     {
-        Gate::authorize('ending.teams.manage');
+        Gate::authorize('Ending Teams');
         $filters = $this->filters($request);
         $teams = EndingTeam::query()->with('league:id,league');
         if ($request->filled('search')) {
@@ -54,7 +54,7 @@ class EndingCatalogController extends Controller
 
     public function leagues(Request $request): Response
     {
-        Gate::authorize('ending.leagues.manage');
+        Gate::authorize('Ending Leagues');
         $filters = $this->filters($request);
         $leagues = EndingLeague::query();
         if ($request->filled('search')) {
@@ -79,7 +79,7 @@ class EndingCatalogController extends Controller
 
     public function configuration(Request $request): Response
     {
-        Gate::authorize('ending.config.manage');
+        Gate::authorize('Ending Config');
         $presets = [];
         foreach ([1 => EndingTraditionalBetAmountConfig::class, 2 => EndingPerQuarterBetAmountConfig::class] as $type => $model) {
             foreach ($model::query()->orderBy('amount')->get(['id', 'amount', 'card_quantity', 'status']) as $preset) {
@@ -109,7 +109,7 @@ class EndingCatalogController extends Controller
 
     public function storePreset(Request $request): RedirectResponse
     {
-        Gate::authorize('ending.config.manage');
+        Gate::authorize('Ending Config');
         $request->validate(['bet_type_id' => ['required', 'integer', Rule::in([1, 2])]]);
 
         return $this->savePreset($request, $request->integer('bet_type_id'));
@@ -117,14 +117,14 @@ class EndingCatalogController extends Controller
 
     public function updatePreset(Request $request, int $type, int $preset): RedirectResponse
     {
-        Gate::authorize('ending.config.manage');
+        Gate::authorize('Ending Config');
 
         return $this->savePreset($request, $type, $preset);
     }
 
     public function deletePreset(Request $request, int $type, int $preset): RedirectResponse
     {
-        Gate::authorize('ending.config.manage');
+        Gate::authorize('Ending Config');
         $this->workflow->write(null, function () use ($request, $type, $preset): void {
             $record = $this->presetModel($type)::query()->lockForUpdate()->findOrFail($preset);
             $before = $record->attributesToArray();
@@ -137,7 +137,7 @@ class EndingCatalogController extends Controller
 
     private function saveTeam(Request $request, EndingTeam $team): RedirectResponse
     {
-        Gate::authorize('ending.teams.manage');
+        Gate::authorize('Ending Teams');
         $this->workflow->write(null, function () use ($request, $team): void {
             if ($team->exists) {
                 $team = EndingTeam::query()->lockForUpdate()->findOrFail($team->id);
@@ -157,7 +157,7 @@ class EndingCatalogController extends Controller
 
     private function saveLeague(Request $request, EndingLeague $league): RedirectResponse
     {
-        Gate::authorize('ending.leagues.manage');
+        Gate::authorize('Ending Leagues');
         $this->workflow->write(null, function () use ($request, $league): void {
             if ($league->exists) {
                 $league = EndingLeague::query()->lockForUpdate()->findOrFail($league->id);
@@ -176,7 +176,7 @@ class EndingCatalogController extends Controller
 
     private function saveConfig(Request $request, EndingConfig $config): RedirectResponse
     {
-        Gate::authorize('ending.config.manage');
+        Gate::authorize('Ending Config');
         $this->workflow->write(null, function () use ($request, $config): void {
             if ($config->exists) {
                 $config = EndingConfig::query()->lockForUpdate()->findOrFail($config->id);

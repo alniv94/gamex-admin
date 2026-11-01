@@ -11,7 +11,7 @@ class CreateEndingCardsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('ending.cards.manage') ?? false;
+        return $this->user()?->can('Ending Game Bet/Cards Creation') ?? false;
     }
 
     /**

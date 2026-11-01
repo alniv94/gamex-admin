@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePermissions } from '@/composables/usePermissions';
+import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import { index as cashierIndex } from '@/actions/App/Http/Controllers/PlayerCashierController';
@@ -22,25 +23,25 @@ const endingNavigation = computed(() =>
         {
             title: 'Scheduled Games',
             icon: 'scheduled-games',
-            permission: 'ending.games.view',
+            permission: 'Ending Games',
             route: EndingGameController.index(),
         },
         {
             title: 'Teams',
             icon: 'teams',
-            permission: 'ending.teams.manage',
+            permission: 'Ending Teams',
             route: EndingCatalogController.teams(),
         },
         {
             title: 'Leagues',
             icon: 'leagues',
-            permission: 'ending.leagues.manage',
+            permission: 'Ending Leagues',
             route: EndingCatalogController.leagues(),
         },
         {
             title: 'Config',
             icon: 'config',
-            permission: 'ending.config.manage',
+            permission: 'Ending Config',
             route: EndingCatalogController.configuration(),
         },
     ].filter((item) => can(item.permission)),
@@ -48,7 +49,7 @@ const endingNavigation = computed(() =>
 const firstName = computed(() => user.value?.name?.trim().split(/\s+/)[0] || 'Administrator');
 const { width } = useDisplay();
 const drawer = ref(width.value >= 1264);
-const openedGroups = ref(['players']);
+const openedGroups = ref(['players', 'settings']);
 const busy = ref(false);
 const error = ref('');
 const api = useAdminApi();
@@ -96,10 +97,7 @@ async function logout() {
                     /></template>
                     <v-list-item-title>Dashboard</v-list-item-title>
                 </v-list-item>
-                <v-list-group
-                    v-if="canAny(['players.view', 'cashin.view', 'cashout.view'])"
-                    value="players"
-                >
+                <v-list-group v-if="canAny(['Player List', 'Cash In', 'Cash Out'])" value="players">
                     <template #activator="{ props }"
                         ><v-list-item
                             v-bind="props"
@@ -116,7 +114,7 @@ async function logout() {
                         ></template
                     >
                     <v-list-item
-                        v-if="can('players.view')"
+                        v-if="can('Player List')"
                         :href="playerList.url()"
                         color="primary"
                         :active="
@@ -134,7 +132,7 @@ async function logout() {
                         ><v-list-item-title>Player List</v-list-item-title></v-list-item
                     >
                     <v-list-item
-                        v-if="can('players.view')"
+                        v-if="can('Player List')"
                         :href="withdrawalAccounts.url()"
                         color="primary"
                         :active="page.url.split('?')[0] === withdrawalAccounts.url()"
@@ -159,13 +157,13 @@ async function logout() {
                                     kind: 'cashin',
                                     title: 'Cash In',
                                     icon: 'mdi-cash-plus',
-                                    permission: 'cashin.view',
+                                    permission: 'Cash In',
                                 },
                                 {
                                     kind: 'cashout',
                                     title: 'Cash Out',
                                     icon: 'mdi-cash-minus',
-                                    permission: 'cashout.view',
+                                    permission: 'Cash Out',
                                 },
                             ] as const
                         ).filter((item) => can(item.permission))"
@@ -207,6 +205,40 @@ async function logout() {
                     /></template>
                     <v-list-item-title>{{ item.title }}</v-list-item-title>
                 </v-list-item>
+                <v-list-group v-if="canAny(['Users', 'Manage users and roles'])" value="settings">
+                    <template #activator="{ props }">
+                        <v-list-item
+                            v-bind="props"
+                            color="primary"
+                            :active="page.url.startsWith('/settings')"
+                        >
+                            <template #prepend
+                                ><v-icon
+                                    icon="mdi-cog-outline"
+                                    color="primary"
+                                    class="navigation-icon"
+                            /></template>
+                            <v-list-item-title>Settings</v-list-item-title>
+                        </v-list-item>
+                    </template>
+                    <v-list-item
+                        :href="SettingsUserController.index.url()"
+                        color="primary"
+                        :active="page.url.startsWith('/settings/users')"
+                        @click.prevent="
+                            router.visit(SettingsUserController.index());
+                            drawer = width >= 1264;
+                        "
+                    >
+                        <template #prepend
+                            ><v-icon
+                                icon="mdi-account-cog-outline"
+                                color="primary"
+                                class="navigation-icon"
+                        /></template>
+                        <v-list-item-title>Users</v-list-item-title>
+                    </v-list-item>
+                </v-list-group>
             </v-list>
         </v-navigation-drawer>
         <v-app-bar class="legacy-app-bar" color="surface" height="64" flat>

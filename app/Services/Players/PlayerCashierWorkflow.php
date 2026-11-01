@@ -3,6 +3,7 @@
 namespace App\Services\Players;
 
 use App\Models\User;
+use App\Services\Auth\AdminPermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -37,7 +38,7 @@ class PlayerCashierWorkflow
     {
         $this->requireReady();
         $approver = User::query()->where('id', config('players.cashier_approval_admin_id'))->first();
-        if (! $approver || ! $approver->can($kind.'.approve')
+        if (! $approver || ! $approver->can(AdminPermissions::cashier($kind, 'approve'))
             || ! password_verify($request->string('approval_password')->toString(), $approver->password)) {
             throw ValidationException::withMessages(['approval_password' => 'Incorrect approval password.']);
         }

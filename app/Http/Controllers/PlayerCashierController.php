@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Auth\AdminPermissions;
 use App\Services\Players\PlayerCashierQueries;
 use App\Services\Players\PlayerCashierWorkflow;
 use Carbon\CarbonImmutable;
@@ -21,7 +22,7 @@ class PlayerCashierController extends Controller
 
     public function index(Request $request, string $kind): Response
     {
-        Gate::authorize($kind.'.view');
+        Gate::authorize(AdminPermissions::cashier($kind, 'view'));
         $filters = $this->filters($request);
 
         return Inertia::render('players/Cashier', [
@@ -34,7 +35,7 @@ class PlayerCashierController extends Controller
 
     public function export(Request $request, string $kind): StreamedResponse
     {
-        Gate::authorize($kind.'.view');
+        Gate::authorize(AdminPermissions::cashier($kind, 'view'));
         $query = $this->queries->filtered($kind, $this->filters($request));
 
         return response()->streamDownload(function () use ($query, $kind): void {
@@ -56,8 +57,8 @@ class PlayerCashierController extends Controller
 
     public function evaluate(Request $request, string $kind, int $cashier, string $action): RedirectResponse
     {
-        Gate::authorize($kind.'.view');
-        Gate::authorize($kind.'.'.($action === 'reject' ? 'verify' : $action));
+        Gate::authorize(AdminPermissions::cashier($kind, 'view'));
+        Gate::authorize(AdminPermissions::cashier($kind, $action));
         $request->validate([
             'expected' => ['required', Rule::in(['Pending', 'Verified'])],
             'remarks' => [Rule::requiredIf(in_array($action, ['reject', 'disapprove'], true)), 'nullable', 'string', 'max:300'],
@@ -70,8 +71,8 @@ class PlayerCashierController extends Controller
 
     public function manual(Request $request, string $kind): RedirectResponse
     {
-        Gate::authorize($kind.'.view');
-        Gate::authorize($kind.'.manual');
+        Gate::authorize(AdminPermissions::cashier($kind, 'view'));
+        Gate::authorize(AdminPermissions::cashier($kind, 'manual'));
         $request->validate([
             'player_id' => ['required', 'integer', Rule::exists('players', 'id')->where('status', 'Active')],
             'amount' => ['required', 'numeric', 'decimal:0,2', 'gt:0', 'max:99999999.99'],
@@ -87,8 +88,8 @@ class PlayerCashierController extends Controller
 
     public function players(Request $request, string $kind): JsonResponse
     {
-        Gate::authorize($kind.'.view');
-        Gate::authorize($kind.'.manual');
+        Gate::authorize(AdminPermissions::cashier($kind, 'view'));
+        Gate::authorize(AdminPermissions::cashier($kind, 'manual'));
         $request->validate(['search' => ['required', 'string', 'min:3', 'max:100']]);
         $search = $request->string('search')->toString();
 

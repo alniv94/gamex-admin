@@ -31,7 +31,7 @@ class AdminAuthenticator
             RateLimiter::hit($limit, $seconds);
         }
         $challenge = (string) Str::uuid();
-        $user = User::where('mobile_number', $mobile)->where('status', 'Active')->whereHas('profile')->first();
+        $user = User::where('mobile_number', $mobile)->where('status', 'Active')->whereHas('profile')->with('profile')->first();
         if ($user) {
             $lock = Cache::lock('admin:send:lock:'.$key, 30);
             if (! $lock->get()) {
@@ -53,11 +53,18 @@ class AdminAuthenticator
                     throw $exception;
                 }
                 DB::transaction(function () use ($user, $challenge): void {
-                    DB::table('admin_profiles')->where('user_id', $user->id)->lockForUpdate()->first();
+                    $current = User::query()->lockForUpdate()->find($user->id);
+                    $profile = DB::table('admin_profiles')->where('user_id', $user->id)->lockForUpdate()->first();
+                    if (! $current || ! $profile || $current->status !== 'Active' || $current->mobile_number !== $user->mobile_number
+                        || $profile->session_version !== $user->profile->session_version) {
+                        DB::table('admin_otp_challenges')->where('id', $challenge)->update(['consumed_at' => now()]);
+
+                        return;
+                    }
                     DB::table('admin_otp_challenges')->where('user_id', $user->id)
                         ->where('id', '!=', $challenge)->whereNull('consumed_at')->update(['consumed_at' => now()]);
                     DB::table('admin_otp_challenges')->where('id', $challenge)->update(['delivered_at' => now()]);
-                });
+                }, 3);
             } finally {
                 $lock->release();
             }

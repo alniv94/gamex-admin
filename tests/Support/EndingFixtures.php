@@ -4,7 +4,6 @@ namespace Tests\Support;
 
 use App\Models\AdminProfile;
 use App\Models\User;
-use App\Services\Auth\AdminPermissions;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -60,9 +59,36 @@ trait EndingFixtures
     {
         $user = User::factory()->create(['status' => 'Active']);
         AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'source_checksum' => str_repeat('a', 64), 'legacy_payload' => ['fixture' => true]]);
+        $names = [
+            1 => 'Player List',
+            2 => 'Cash In',
+            3 => 'Cash Out',
+            8 => 'Ending Game Winner Verification',
+            9 => 'Ending Game Winner Approval 1',
+            10 => 'Ending Game Settings',
+            11 => 'Ending Game Result Creation',
+            12 => 'Ending Game Bet/Cards Creation',
+            15 => 'Users',
+            17 => 'Ending Games',
+            18 => 'Ending Teams',
+            19 => 'Ending Leagues',
+            20 => 'Ending Config',
+            23 => 'Player Verify',
+            24 => 'Player Settings',
+            26 => 'Cash In Approve',
+            27 => 'Cash In Dispprove',
+            28 => 'Cash In Manual',
+            29 => 'Cash Out Approve',
+            30 => 'Cash Out Dispprove',
+            31 => 'Cash Out Manual',
+            32 => 'Ending Game Create',
+            34 => 'Ending Game Winners',
+            52 => 'Cashin Verify',
+            53 => 'Cashout Verify',
+        ];
         foreach ($permissions as $id) {
-            Permission::findOrCreate(AdminPermissions::legacyName($id), 'web');
-            $user->givePermissionTo(AdminPermissions::legacyName($id));
+            Permission::findOrCreate($names[$id], 'web');
+            $user->givePermissionTo($names[$id]);
         }
         $this->actingAs($user)->withSession(['admin_version' => $user->profile->session_version]);
 

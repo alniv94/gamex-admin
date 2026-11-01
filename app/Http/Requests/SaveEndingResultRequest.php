@@ -11,7 +11,7 @@ class SaveEndingResultRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('ending.results.manage') ?? false;
+        return $this->user()?->can('Ending Game Result Creation') ?? false;
     }
 
     /**

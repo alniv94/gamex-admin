@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\AdminProfile;
 use App\Models\User;
+use App\Services\Auth\AdminPermissions;
 use App\Services\Legacy\AdminImport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PDO;
 use RuntimeException;
 use Spatie\Permission\Models\Role;
@@ -34,7 +36,7 @@ class AdminImportTest extends TestCase
         $statement->execute([7, '9171234567', $hash, 'old-secret-session', 'Verified', 'Active', '2025-01-02 10:00:00']);
         $statement->execute([8, '9181234567', '-', null, 'Not Verified', 'Inactive', '2025-02-03 10:00:00']);
         $this->source->exec("INSERT INTO admin_user_info VALUES (7, 'Active', null, 'Admin', '1990-01-01', 'shared@example.test', 1), (8, 'Inactive', 'M', 'Admin', '0000-00-00', 'shared@example.test', 2)");
-        $this->source->exec("INSERT INTO admin_access VALUES (1, 'Dashboard', 1, 'Dashboard'), (2, 'Users', 2, 'Users')");
+        $this->source->exec("INSERT INTO admin_access VALUES (1, 'Player List', 2, 'PlayerList'), (2, 'Cash In', 3, 'CashIn')");
         $this->source->exec('INSERT INTO admin_user_access VALUES (1, 7, 1), (2, 7, 2), (3, 8, 1)');
         config(['database.connections.legacy' => ['driver' => 'sqlite', 'database' => $this->fixture, 'prefix' => '']]);
         DB::purge('legacy');
@@ -71,13 +73,43 @@ class AdminImportTest extends TestCase
         $this->assertSame($plan['accounts'][7]['archive'], $profile->legacy_payload);
         $this->assertArrayNotHasKey('login_key', $profile->legacy_payload['user']);
         $this->assertStringNotContainsString('shared@example.test', $profile->getRawOriginal('legacy_payload'));
-        $this->assertDatabaseCount('admin_user_permissions', 3);
-        $this->assertSame(['cashin.view', 'players.view'], User::findOrFail(7)->getAllPermissions()->pluck('name')->sort()->values()->all());
+        $this->assertFalse(Schema::hasTable('admin_user_permissions'));
+        $this->assertFalse(Schema::hasTable('admin_permissions'));
+        $this->assertDatabaseHas('admin_acl_permissions', ['name' => 'Player List', 'module' => 'PlayerList', 'module_order' => 2]);
+        $this->assertSame(['Cash In', 'Player List'], User::findOrFail(7)->getAllPermissions()->pluck('name')->sort()->values()->all());
         $this->assertDatabaseCount('admin_model_permissions', 3);
         $import->execute($import->plan());
         $this->assertDatabaseCount('users', 2);
         $this->assertSame(2, $import->inspect($import->plan())['existing']);
         $this->artisan('legacy:verify-admins')->assertSuccessful();
+    }
+
+    public function test_settings_changes_preserve_verified_source_archives_and_are_not_overwritten_by_import(): void
+    {
+        $import = app(AdminImport::class);
+        $plan = $import->plan();
+        $import->execute($plan);
+        $manager = User::factory()->create(['status' => 'Active']);
+        $manager->profile()->create([]);
+        $manager->givePermissionTo(AdminPermissions::MANAGE_USERS);
+        $this->actingAs($manager)->withSession(['admin_version' => 0]);
+
+        $this->put('/settings/users/8', [
+            'name' => 'Managed name', 'mobile_number' => '09181234567', 'email' => null,
+            'roles' => [], 'permissions' => ['Cash Out'], 'version' => 0,
+        ])->assertSessionHasNoErrors();
+
+        $import->execute($plan);
+        $this->assertDatabaseHas('users', ['id' => 8, 'name' => 'Managed name']);
+        $this->assertSame(1, $import->inspect($plan)['managed']);
+        $this->assertSame(['Cash Out'], User::findOrFail(8)->getAllPermissions()->pluck('name')->all());
+        $this->assertSame($plan['accounts'][8]['archive'], AdminProfile::where('user_id', 8)->firstOrFail()->legacy_payload);
+        $this->artisan('legacy:verify-admins')->assertSuccessful();
+
+        AdminProfile::where('user_id', 8)->firstOrFail()->update(['source_checksum' => str_repeat('b', 64)]);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('invalid target archive');
+        $import->inspect($plan);
     }
 
     public function test_target_collisions_abort_the_whole_import(): void
@@ -91,7 +123,7 @@ class AdminImportTest extends TestCase
         }
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseCount('admin_profiles', 0);
-        $this->assertDatabaseCount('admin_permissions', 0);
+        $this->assertDatabaseCount('admin_model_permissions', 0);
     }
 
     public function test_duplicate_normalized_mobiles_are_rejected(): void
@@ -99,6 +131,26 @@ class AdminImportTest extends TestCase
         $this->source->exec("UPDATE admin_users SET mobile_number='09171234567' WHERE id=8");
         $this->expectException(RuntimeException::class);
         app(AdminImport::class)->plan();
+    }
+
+    public function test_duplicate_permission_names_are_rejected_before_accounts_or_grants_are_written(): void
+    {
+        $this->source->exec("INSERT INTO admin_access VALUES (101, 'cash in', 0, null)");
+
+        $this->artisan('legacy:import-admins', ['--execute' => true])->assertFailed();
+
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('admin_model_permissions', 0);
+    }
+
+    public function test_source_permissions_cannot_claim_the_native_user_management_capability(): void
+    {
+        $this->source->exec("INSERT INTO admin_access VALUES (101, 'Manage users and roles', 0, null)");
+
+        $this->artisan('legacy:import-admins', ['--execute' => true])->assertFailed();
+
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseCount('admin_model_permissions', 0);
     }
 
     public function test_source_changes_are_detected_without_overwriting_imported_accounts(): void
@@ -114,7 +166,7 @@ class AdminImportTest extends TestCase
     {
         $import = app(AdminImport::class);
         $import->execute($import->plan());
-        DB::table('admin_user_permissions')->where('user_id', 7)->where('permission_id', 2)->delete();
+        DB::table('admin_acl_permissions')->where('name', 'Cash In')->update(['module' => 'WrongModule']);
         $this->artisan('legacy:verify-admins')->assertFailed();
     }
 
@@ -129,10 +181,10 @@ class AdminImportTest extends TestCase
     {
         $import = app(AdminImport::class);
         $import->execute($import->plan());
-        User::findOrFail(7)->revokePermissionTo('cashin.view');
+        User::findOrFail(7)->revokePermissionTo('Cash In');
 
         $this->artisan('legacy:verify-admins')->assertFailed();
-        $this->assertDatabaseCount('admin_user_permissions', 3);
+        $this->assertCount(2, AdminProfile::where('user_id', 7)->firstOrFail()->legacy_payload['permission_rows']);
     }
 
     public function test_verifier_accepts_equivalent_roles_and_detects_extra_role_permissions(): void
@@ -141,12 +193,12 @@ class AdminImportTest extends TestCase
         $import->execute($import->plan());
         $user = User::findOrFail(7);
         $role = Role::create(['name' => 'Imported Access', 'guard_name' => 'web']);
-        $role->givePermissionTo(['players.view', 'cashin.view']);
+        $role->givePermissionTo(['Player List', 'Cash In']);
         $user->assignRole($role);
         $user->syncPermissions([]);
 
         $this->artisan('legacy:verify-admins')->assertSuccessful();
-        $role->givePermissionTo('cashout.approve');
+        $role->givePermissionTo('Cash Out Approve');
         $this->artisan('legacy:verify-admins')->assertFailed();
     }
 
@@ -157,7 +209,9 @@ class AdminImportTest extends TestCase
         $import = app(AdminImport::class);
         $import->execute($import->plan());
 
-        $this->assertTrue(User::findOrFail(7)->can('legacy.91'));
+        $this->assertTrue(User::findOrFail(7)->can('Future module'));
+        $this->assertDatabaseHas('admin_acl_permissions', ['name' => 'Future module', 'module' => 'Future', 'module_order' => 91]);
+        $this->assertDatabaseMissing('admin_acl_permissions', ['name' => 'legacy.91']);
         $this->assertDatabaseCount('admin_model_roles', 0);
         $this->artisan('legacy:verify-admins')->assertSuccessful();
     }
@@ -172,9 +226,9 @@ class AdminImportTest extends TestCase
         $this->assertSame(1, $report['invalid_grants_archived']);
         $this->assertSame(1, $report['duplicate_grants_archived']);
         $this->assertSame(1, $report['orphan_rows_archived']);
-        $this->assertDatabaseCount('admin_user_permissions', 3);
+        $this->assertDatabaseCount('admin_model_permissions', 3);
         $this->assertDatabaseCount('admin_legacy_exceptions', 1);
-        $this->assertDatabaseMissing('admin_permissions', ['id' => 0]);
+        $this->assertDatabaseMissing('admin_acl_permissions', ['name' => 'legacy.0']);
         $profile = AdminProfile::where('legacy_admin_id', 7)->firstOrFail();
         $this->assertCount(4, $profile->legacy_payload['permission_rows']);
         $this->artisan('legacy:verify-admins')->assertSuccessful();

@@ -115,6 +115,21 @@ class AdminAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_access_revoked_during_code_delivery_cannot_be_restored_by_reactivation(): void
+    {
+        $user = $this->admin();
+        $this->mock(AdminSms::class)->shouldReceive('send')->once()->andReturnUsing(function ($mobile, $code) use ($user): void {
+            $this->sentCode = $code;
+            $user->profile()->increment('session_version', 2);
+        });
+
+        $id = $this->requestCode();
+
+        $this->assertNotNull(DB::table('admin_otp_challenges')->where('id', $id)->value('consumed_at'));
+        $this->postSessionJson('/api/login', ['challenge_id' => $id, 'otp' => $this->sentCode])->assertUnprocessable();
+        $this->assertGuest();
+    }
+
     public function test_expired_code_is_rejected(): void
     {
         $this->admin();

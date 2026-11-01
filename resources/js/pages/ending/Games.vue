@@ -23,7 +23,7 @@ const props = defineProps<{
 }>();
 const page = usePage<AdminPageProps>();
 const { can } = usePermissions();
-const canCreate = computed(() => can('ending.games.create'));
+const canCreate = computed(() => can('Ending Game Create'));
 const form = reactive({
     search: props.filters.search || '',
     league_id: Number(props.filters.league_id) || null,

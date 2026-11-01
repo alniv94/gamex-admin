@@ -232,7 +232,7 @@ class PlayerCashierTest extends TestCase
     {
         $this->cashierFixtures();
         $admin = $this->endingAdmin([$permission, $manual]);
-        $admin->givePermissionTo($kind.'.approve');
+        $admin->givePermissionTo(($kind === 'cashin' ? 'Cash In Approve' : 'Cash Out Approve'));
         config(['players.cashier_approval_admin_id' => $admin->id]);
         $payload = ['player_id' => 9, 'amount' => '0.10', 'remarks' => 'Manual adjustment', 'request_key' => (string) Str::uuid(), 'approval_password' => 'wrong'];
 
@@ -277,7 +277,7 @@ class PlayerCashierTest extends TestCase
         $this->assertDatabaseHas('player_wallet', ['player_id' => 9, 'actual_amount' => '123.45']);
 
         $role = Role::create(['name' => 'Cashier Approver', 'guard_name' => 'web']);
-        $role->givePermissionTo($kind.'.approve');
+        $role->givePermissionTo(($kind === 'cashin' ? 'Cash In Approve' : 'Cash Out Approve'));
         $approver->assignRole($role);
         $this->post('/players/'.$kind.'/manual', $payload)->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('player_'.$kind, ['status' => 'Approved', 'evaluated_by' => $operator->id]);
@@ -285,7 +285,7 @@ class PlayerCashierTest extends TestCase
         $this->assertSame($operator->id, $audit->user_id);
         $this->assertSame($approver->id, json_decode($audit->after, true, flags: JSON_THROW_ON_ERROR)['approver_id']);
 
-        $role->revokePermissionTo($kind.'.approve');
+        $role->revokePermissionTo(($kind === 'cashin' ? 'Cash In Approve' : 'Cash Out Approve'));
         $this->postJson('/players/'.$kind.'/manual', [...$payload, 'request_key' => (string) Str::uuid()])
             ->assertUnprocessable()->assertJsonValidationErrors('approval_password');
         $this->assertDatabaseCount('player_'.$kind, 1);
@@ -323,7 +323,7 @@ class PlayerCashierTest extends TestCase
     {
         $this->cashierFixtures();
         $admin = $this->endingAdmin([3, 31]);
-        $admin->givePermissionTo('cashout.approve');
+        $admin->givePermissionTo('Cash Out Approve');
         config(['players.cashier_approval_admin_id' => $admin->id]);
 
         $this->postJson('/players/cashout/manual', [
@@ -341,14 +341,14 @@ class PlayerCashierTest extends TestCase
     {
         $this->cashierFixtures();
         $admin = $this->endingAdmin([2, 28]);
-        $admin->givePermissionTo('cashin.approve');
+        $admin->givePermissionTo('Cash In Approve');
         config(['players.cashier_approval_admin_id' => $admin->id]);
         DB::table('players')->where('id', 9)->update(['cashin' => 'Disabled']);
         $payload = ['player_id' => 9, 'amount' => '10.00', 'remarks' => 'Manual adjustment',
             'request_key' => (string) Str::uuid(), 'approval_password' => 'test-password'];
 
         $this->postJson('/players/cashin/manual', $payload)->assertUnprocessable()->assertJsonValidationErrors('action');
-        $admin->revokePermissionTo('cashin.manual');
+        $admin->revokePermissionTo('Cash In Manual');
         $this->postJson('/players/cashin/manual', $payload)->assertForbidden();
 
         $this->assertDatabaseCount('player_cashin', 0);

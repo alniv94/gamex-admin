@@ -29,7 +29,9 @@ const page = usePage<AdminPageProps>();
 const { can } = usePermissions();
 const api = useAdminApi();
 const title = computed(() => (props.kind === 'cashin' ? 'Cash In' : 'Cash Out'));
-const canManual = computed(() => can(props.kind === 'cashin' ? 'cashin.manual' : 'cashout.manual'));
+const canManual = computed(() =>
+    can(props.kind === 'cashin' ? 'Cash In Manual' : 'Cash Out Manual'),
+);
 const loading = ref(false);
 const form = reactive({
     search: '',
@@ -126,12 +128,12 @@ const actions = computed(() => {
                   {
                       action: 'verify',
                       label: 'Verify',
-                      permission: props.kind === 'cashin' ? 'cashin.verify' : 'cashout.verify',
+                      permission: props.kind === 'cashin' ? 'Cashin Verify' : 'Cashout Verify',
                   },
                   {
                       action: 'reject',
                       label: 'Reject',
-                      permission: props.kind === 'cashin' ? 'cashin.verify' : 'cashout.verify',
+                      permission: props.kind === 'cashin' ? 'Cashin Verify' : 'Cashout Verify',
                   },
               ]
             : selected.value.status === 'Verified'
@@ -139,13 +141,14 @@ const actions = computed(() => {
                     {
                         action: 'approve',
                         label: 'Approve',
-                        permission: props.kind === 'cashin' ? 'cashin.approve' : 'cashout.approve',
+                        permission:
+                            props.kind === 'cashin' ? 'Cash In Approve' : 'Cash Out Approve',
                     },
                     {
                         action: 'disapprove',
                         label: 'Disapprove',
                         permission:
-                            props.kind === 'cashin' ? 'cashin.disapprove' : 'cashout.disapprove',
+                            props.kind === 'cashin' ? 'Cash In Dispprove' : 'Cash Out Dispprove',
                     },
                 ]
               : [];
@@ -486,7 +489,7 @@ onBeforeUnmount(() => {
                             <td>Player</td>
                             <td>
                                 <Link
-                                    v-if="selected.player_id && can('players.view')"
+                                    v-if="selected.player_id && can('Player List')"
                                     :href="show(selected.player_id)"
                                     >{{ selected.player_name }}</Link
                                 ><template v-else>{{

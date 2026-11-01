@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
 use Tests\Support\PlayerFixtures;
 
 require __DIR__.'/../vendor/autoload.php';
@@ -96,8 +97,8 @@ for ($i = 1; $i <= 6; $i++) {
         'user_id' => $user->id, 'legacy_admin_id' => $user->id,
         'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64),
     ]);
-    foreach ([1, 23, 24, 17, 18, 19, 20, 32, 10, 12, 11, 34, 8, 9] as $permission) {
-        $user->givePermissionTo(AdminPermissions::legacyName($permission));
+    foreach (['Player List', 'Player Verify', 'Player Settings', 'Ending Games', 'Ending Teams', 'Ending Leagues', 'Ending Config', 'Ending Game Create', 'Ending Game Settings', 'Ending Game Bet/Cards Creation', 'Ending Game Result Creation', 'Ending Game Winners', 'Ending Game Winner Verification', 'Ending Game Winner Approval 1'] as $permission) {
+        $user->givePermissionTo($permission);
     }
     DB::table('ending_games')->insert(['id' => 100 + $i, 'team_a' => 1, 'team_b' => 2, 'schedule' => now()->subHour(), 'created_at' => now()]);
     DB::table('ending_bet_amounts')->insert(['id' => 200 + $i, 'game_id' => 100 + $i, 'bet_type_id' => 2, 'amount' => '15.00']);
@@ -114,8 +115,16 @@ for ($i = 1; $i <= 6; $i++) {
 for ($index = 7; $index <= 9; $index++) {
     $user = User::factory()->create(['name' => 'Player Test Administrator '.$index, 'mobile_number' => '+6391'.$index.'1234567', 'email' => 'player-admin'.$index.'@example.test', 'status' => 'Active']);
     AdminProfile::create(['user_id' => $user->id, 'legacy_admin_id' => $user->id, 'legacy_payload' => ['test_fixture' => true], 'source_checksum' => str_repeat('a', 64)]);
-    foreach ([1, 23, 24, 2, 3, 26, 27, 28, 29, 30, 31, 52, 53] as $permission) {
-        $user->givePermissionTo(AdminPermissions::legacyName($permission));
+    foreach (['Player List', 'Player Verify', 'Player Settings', 'Cash In', 'Cash Out', 'Cash In Approve', 'Cash In Dispprove', 'Cash In Manual', 'Cash Out Approve', 'Cash Out Dispprove', 'Cash Out Manual', 'Cashin Verify', 'Cashout Verify'] as $permission) {
+        $user->givePermissionTo($permission);
     }
 }
+$accessManager = Role::create(['name' => 'Access manager', 'guard_name' => 'web']);
+$accessManager->givePermissionTo([AdminPermissions::VIEW_USERS, AdminPermissions::MANAGE_USERS]);
+for ($index = 1; $index <= 3; $index++) {
+    $user = User::factory()->create(['name' => 'Settings Administrator '.$index, 'mobile_number' => '+63920123456'.$index, 'email' => 'settings-admin'.$index.'@example.test', 'status' => 'Active']);
+    $user->profile()->create([]);
+    $user->assignRole($accessManager);
+}
+
 echo 'Isolated browser fixtures ready.'.PHP_EOL;

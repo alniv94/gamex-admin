@@ -24,7 +24,7 @@ class PlayerController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
         $filters = $this->listFilters($request);
 
         return Inertia::render('players/List', [
@@ -35,7 +35,7 @@ class PlayerController extends Controller
 
     public function withdrawalAccounts(Request $request): Response
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'date_from' => ['nullable', 'date_format:Y-m-d'],
@@ -58,7 +58,7 @@ class PlayerController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
         $query = $this->queries->filtered($this->listFilters($request));
 
         return response()->streamDownload(function () use ($query): void {
@@ -90,7 +90,7 @@ class PlayerController extends Controller
 
     public function show(Request $request, Player $player): Response
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
         $filters = $request->validate([
             'tab' => ['nullable', Rule::in(['transactions', 'player_logs', 'admin_logs'])],
             'activity_search' => ['nullable', 'string', 'max:100'],
@@ -111,14 +111,14 @@ class PlayerController extends Controller
 
     public function ndrp(Request $request, Player $player, PagcorLookup $lookup): JsonResponse
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
 
         return response()->json($lookup->search((string) $player->name));
     }
 
     public function image(Request $request, Player $player, string $kind): BinaryFileResponse
     {
-        Gate::authorize('players.view');
+        Gate::authorize('Player List');
         $path = DB::table('player_profiles')->where('player_id', $player->id)->value($kind.'_path');
         $configuredRoot = config('players.media_root');
         $root = is_string($configuredRoot) && $configuredRoot !== '' ? realpath($configuredRoot) : false;
@@ -144,8 +144,8 @@ class PlayerController extends Controller
 
     public function setting(Request $request, Player $player, string $setting): RedirectResponse
     {
-        Gate::authorize('players.view');
-        Gate::authorize('players.settings.update');
+        Gate::authorize('Player List');
+        Gate::authorize('Player Settings');
         $request->validate([
             'enabled' => ['required', 'boolean'], 'expected' => ['required', 'string', 'max:32'],
             'reason' => [Rule::requiredIf($setting === 'account' && ! $request->boolean('enabled')), 'nullable', 'string', 'max:50'],
@@ -157,8 +157,8 @@ class PlayerController extends Controller
 
     public function fund(Request $request, Player $player, int $fund, string $action): RedirectResponse
     {
-        Gate::authorize('players.view');
-        Gate::authorize('players.verify');
+        Gate::authorize('Player List');
+        Gate::authorize('Player Verify');
         $request->validate(['reason' => [Rule::requiredIf($action === 'reject'), 'nullable', 'string', 'max:500']]);
         $this->workflow->fund($request, $player->id, $fund, $action);
 
@@ -167,8 +167,8 @@ class PlayerController extends Controller
 
     private function evaluate(Request $request, Player $player, bool $reject): RedirectResponse
     {
-        Gate::authorize('players.view');
-        Gate::authorize('players.verify');
+        Gate::authorize('Player List');
+        Gate::authorize('Player Verify');
         $request->validate([
             'expected' => ['required', Rule::in(['Pending', 'Files Submitted'])],
             'reject_reason_id' => [Rule::requiredIf($reject), 'nullable', 'integer', Rule::exists('admin_player_reject_reasons', 'id')->where('is_active', 'Yes')],

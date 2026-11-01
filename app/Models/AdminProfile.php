@@ -14,6 +14,6 @@ class AdminProfile extends Model
 
     protected function casts(): array
     {
-        return ['legacy_payload' => 'encrypted:array', 'birthdate' => 'date', 'session_version' => 'integer'];
+        return ['legacy_payload' => 'encrypted:array', 'birthdate' => 'date', 'session_version' => 'integer', 'management_version' => 'integer'];
     }
 }

@@ -35,7 +35,14 @@ class AdminImport
             }
         }
         $permissions = [];
+        $names = [];
         foreach ($catalog as $permission) {
+            $name = $permission->access;
+            $key = mb_strtolower(trim($name));
+            if ($key === '' || mb_strlen($name) > 255 || isset($names[$key]) || $key === mb_strtolower(AdminPermissions::MANAGE_USERS)) {
+                throw new RuntimeException('The source permission catalog contains an invalid, duplicate, or reserved name.');
+            }
+            $names[$key] = true;
             $permissions[(int) $permission->id] = [
                 'id' => (int) $permission->id, 'name' => $permission->access,
                 'module_order' => (int) $permission->module_order, 'module' => $permission->vue_module,
@@ -125,12 +132,13 @@ class AdminImport
     }
 
     /** @param array{accounts: array<int, array<string, mixed>>, permissions: array<int, array<string, mixed>>, warnings: int, exceptions: array<string, array<string, mixed>>, invalid_grants: int, duplicate_grants: int} $plan
-     * @return array{new: int, existing: int, active: int, inactive: int, permissions: int, assignments: int, email_warnings: int, invalid_grants_archived: int, duplicate_grants_archived: int, orphan_rows_archived: int, pending_catalog: int, pending_archives: int}
+     * @return array{new: int, existing: int, managed: int, active: int, inactive: int, permissions: int, assignments: int, email_warnings: int, invalid_grants_archived: int, duplicate_grants_archived: int, orphan_rows_archived: int, pending_catalog: int, pending_archives: int}
      */
     public function inspect(array $plan): array
     {
         $new = 0;
         $existing = 0;
+        $managed = 0;
         $active = 0;
         $assignments = 0;
         $pendingCatalog = 0;
@@ -141,8 +149,9 @@ class AdminImport
                 if ($mapped->user_id !== $id && (int) $mapped->user_id !== $id) {
                     throw new RuntimeException("Administrator {$id} has a conflicting target mapping.");
                 }
-                $this->verifyAccount($id, $account);
+                $this->verifyAccount($id, $account, $plan['permissions']);
                 $existing++;
+                $managed += $mapped->management_version > 0 ? 1 : 0;
             } else {
                 $query = DB::table('users')->where('id', $id);
                 if ($account['user']['mobile_number'] !== null) {
@@ -160,10 +169,12 @@ class AdminImport
             $assignments += count($account['permissions']);
         }
         foreach ($plan['permissions'] as $id => $permission) {
-            $target = DB::table('admin_permissions')->where('id', $id)->first();
-            $livePermission = Permission::query()->where('guard_name', 'web')->where('name', AdminPermissions::legacyName($id))->exists();
-            $pendingCatalog += $target && $livePermission ? 0 : 1;
-            if ($target && (array) $target != $permission) {
+            $target = Permission::query()->where('guard_name', 'web')->where('name', $permission['name'])->first();
+            $matches = $target && $target->name === $permission['name']
+                && $target->getAttribute('module') === $permission['module']
+                && (int) $target->getAttribute('module_order') === $permission['module_order'];
+            $pendingCatalog += $matches ? 0 : 1;
+            if ($target && ! $matches && $existing > 0) {
                 throw new RuntimeException("Permission {$id} differs from the source. Review the change before importing.");
             }
         }
@@ -178,7 +189,7 @@ class AdminImport
         }
 
         return [
-            'new' => $new, 'existing' => $existing, 'active' => $active,
+            'new' => $new, 'existing' => $existing, 'managed' => $managed, 'active' => $active,
             'inactive' => count($plan['accounts']) - $active, 'permissions' => count($plan['permissions']),
             'assignments' => $assignments, 'email_warnings' => $plan['warnings'],
             'invalid_grants_archived' => $plan['invalid_grants'], 'duplicate_grants_archived' => $plan['duplicate_grants'],
@@ -204,10 +215,10 @@ class AdminImport
                     }
                 }
                 foreach ($plan['permissions'] as $permission) {
-                    if (! DB::table('admin_permissions')->where('id', $permission['id'])->exists()) {
-                        DB::table('admin_permissions')->insert($permission);
-                    }
-                    Permission::findOrCreate(AdminPermissions::legacyName($permission['id']), 'web');
+                    Permission::query()->updateOrCreate(
+                        ['name' => $permission['name'], 'guard_name' => 'web'],
+                        ['module' => $permission['module'], 'module_order' => $permission['module_order']],
+                    );
                 }
                 foreach ($plan['accounts'] as $id => $account) {
                     if (DB::table('admin_profiles')->where('legacy_admin_id', $id)->exists()) {
@@ -220,10 +231,7 @@ class AdminImport
                         'legacy_payload' => Crypt::encryptString(json_encode($account['archive'], JSON_THROW_ON_ERROR)),
                         'source_checksum' => $account['checksum'], 'created_at' => now(), 'updated_at' => now(),
                     ]);
-                    foreach ($account['permissions'] as $permission) {
-                        DB::table('admin_user_permissions')->insert(['user_id' => $id, 'permission_id' => $permission]);
-                    }
-                    User::query()->findOrFail($id)->givePermissionTo(array_map(AdminPermissions::legacyName(...), $account['permissions']));
+                    User::query()->findOrFail($id)->givePermissionTo($this->grantNames($id, $account['permissions'], $plan['permissions']));
                 }
                 $verified = $this->inspect($plan);
                 if ($verified['new'] || $verified['pending_catalog'] || $verified['pending_archives']) {
@@ -235,14 +243,21 @@ class AdminImport
         }
     }
 
-    /** @param array<string, mixed> $account */
-    private function verifyAccount(int $id, array $account): void
+    /**
+     * @param  array<string, mixed>  $account
+     * @param  array<int, array<string, mixed>>  $catalog
+     */
+    private function verifyAccount(int $id, array $account, array $catalog): void
     {
         $user = DB::table('users')->where('id', $id)->first();
         $profile = AdminProfile::where('legacy_admin_id', $id)->first();
         if (! $user || ! $profile || $profile->source_checksum !== $account['checksum']
             || $profile->legacy_payload !== $account['archive']) {
             throw new RuntimeException("Administrator {$id} has changed source data or an invalid target archive.");
+        }
+        // Settings owns live state after the first audited edit; source archives remain immutable.
+        if ($profile->management_version > 0) {
+            return;
         }
         foreach ($account['user'] as $field => $value) {
             if ($field !== 'updated_at' && $user->{$field} != $value) {
@@ -254,16 +269,26 @@ class AdminImport
                 throw new RuntimeException("Administrator {$id} failed profile verification.");
             }
         }
-        $actual = DB::table('admin_user_permissions')->where('user_id', $id)->orderBy('permission_id')
-            ->pluck('permission_id')->map(fn ($value) => (int) $value)->all();
-        if ($actual !== $account['permissions']) {
-            throw new RuntimeException("Administrator {$id} failed permission verification.");
-        }
-        $expectedNames = array_map(AdminPermissions::legacyName(...), $account['permissions']);
+        $expectedNames = $this->grantNames($id, array_values($account['permissions']), $catalog);
         sort($expectedNames);
         $effectiveNames = User::query()->findOrFail($id)->getAllPermissions()->pluck('name')->sort()->values()->all();
         if ($effectiveNames !== $expectedNames) {
             throw new RuntimeException("Administrator {$id} failed effective permission verification.");
         }
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @param  array<int, array<string, mixed>>  $catalog
+     * @return list<string>
+     */
+    private function grantNames(int $adminId, array $ids, array $catalog): array
+    {
+        $names = array_map(fn (int $id): string => $catalog[$id]['name'], $ids);
+        if ($adminId === 76 && in_array(15, $ids, true)) {
+            $names[] = AdminPermissions::MANAGE_USERS;
+        }
+
+        return $names;
     }
 }
