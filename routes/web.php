@@ -6,6 +6,7 @@ use App\Http\Controllers\EndingGameController;
 use App\Http\Controllers\OtsoPanaloController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\PlayerReportController;
 use App\Http\Controllers\SettingsRoleController;
 use App\Http\Controllers\SettingsUserController;
 use Illuminate\Http\Request;
@@ -51,6 +52,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/players/{kind}/manual', [PlayerCashierController::class, 'manual'])->whereIn('kind', ['cashin', 'cashout'])->middleware('throttle:10,1')->name('players.cashier.manual');
     Route::post('/players/{kind}/{cashier}/{action}', [PlayerCashierController::class, 'evaluate'])->whereIn('kind', ['cashin', 'cashout'])->whereNumber('cashier')->whereIn('action', ['verify', 'reject', 'approve', 'disapprove'])->name('players.cashier.evaluate');
     Route::get('/players/list', [PlayerController::class, 'index'])->name('players.index');
+    Route::get('/players/reports/{report}', [PlayerReportController::class, 'index'])->whereIn('report', ['registered', 'new', 'active'])->name('players.reports.index');
+    Route::get('/players/reports/{report}/export', [PlayerReportController::class, 'export'])->whereIn('report', ['registered', 'new', 'active'])->name('players.reports.export');
     Route::get('/players/withdrawal_accounts', [PlayerController::class, 'withdrawalAccounts'])->name('players.withdrawal_accounts');
     Route::get('/players/export', [PlayerController::class, 'export'])->name('players.export');
     Route::get('/player/{player}', [PlayerController::class, 'show'])->whereNumber('player')->name('players.show');

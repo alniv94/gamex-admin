@@ -12,6 +12,7 @@ import {
     withdrawalAccounts,
 } from '@/actions/App/Http/Controllers/PlayerController';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
+import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
 import { usePermissions } from '@/composables/usePermissions';
 import { dashboard } from '@/routes';
 import type { AdminPageProps } from '@/types';
@@ -43,6 +44,24 @@ const playerNavigation = computed(() =>
             icon: 'mdi-bank-outline',
             permission: 'Player List',
             route: withdrawalAccounts(),
+        },
+        {
+            title: 'Registered Player List',
+            icon: 'mdi-account-group-outline',
+            permission: 'Player List',
+            route: playerReport('registered'),
+        },
+        {
+            title: 'Newly Registered Players',
+            icon: 'mdi-account-plus-outline',
+            permission: 'Player List',
+            route: playerReport('new'),
+        },
+        {
+            title: 'Active Players Summary',
+            icon: 'mdi-access-point',
+            permission: 'Player List',
+            route: playerReport('active'),
         },
         {
             title: 'Cash In',
