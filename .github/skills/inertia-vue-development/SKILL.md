@@ -1,9 +1,9 @@
 ---
 name: inertia-vue-development
-description: 'Develops Inertia.js v3 Vue client-side applications. Activates when creating Vue pages, forms, or navigation; using <Link>, <Form>, useForm, useHttp, setLayoutProps, or router; working with deferred props, prefetching, optimistic updates, instant visits, or polling; or when user mentions Vue with Inertia, Vue pages, Vue forms, or Vue navigation.'
+description: "Develops Inertia.js v3 Vue client-side applications. Activates when creating Vue pages, forms, or navigation; using <Link>, <Form>, useForm, useHttp, setLayoutProps, or router; working with deferred props, prefetching, optimistic updates, instant visits, or polling; or when user mentions Vue with Inertia, Vue pages, Vue forms, or Vue navigation."
 license: MIT
 metadata:
-    author: laravel
+  author: laravel
 ---
 
 # Inertia Vue Development
@@ -31,12 +31,11 @@ Vue page components should be placed in the `resources/js/pages` directory.
 ### Page Component Structure
 
 <!-- Basic Vue Page Component -->
-
 ```vue
 <script setup>
 defineProps({
-    users: Array,
-});
+    users: Array
+})
 </script>
 
 <template>
@@ -58,10 +57,9 @@ defineProps({
 Use `<Link>` for client-side navigation instead of traditional `<a>` tags:
 
 <!-- Inertia Vue Navigation -->
-
 ```vue
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3'
 </script>
 
 <template>
@@ -76,14 +74,15 @@ import { Link } from '@inertiajs/vue3';
 ### Link with Method
 
 <!-- Link with POST Method -->
-
 ```vue
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3'
 </script>
 
 <template>
-    <Link href="/logout" method="post" as="button"> Logout </Link>
+    <Link href="/logout" method="post" as="button">
+        Logout
+    </Link>
 </template>
 ```
 
@@ -92,27 +91,27 @@ import { Link } from '@inertiajs/vue3';
 Prefetch pages to improve perceived performance:
 
 <!-- Prefetch on Hover -->
-
 ```vue
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3'
 </script>
 
 <template>
-    <Link href="/users" prefetch> Users </Link>
+    <Link href="/users" prefetch>
+        Users
+    </Link>
 </template>
 ```
 
 ### Programmatic Navigation
 
 <!-- Router Visit -->
-
 ```vue
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3'
 
 function handleClick() {
-    router.visit('/users');
+    router.visit('/users')
 }
 
 // Or with options
@@ -121,7 +120,7 @@ function createUser() {
         method: 'post',
         data: { name: 'John' },
         onSuccess: () => console.log('Done'),
-    });
+    })
 }
 </script>
 
@@ -138,10 +137,9 @@ function createUser() {
 The recommended way to build forms is with the `<Form>` component:
 
 <!-- Form Component Example -->
-
 ```vue
 <script setup>
-import { Form } from '@inertiajs/vue3';
+import { Form } from '@inertiajs/vue3'
 </script>
 
 <template>
@@ -164,10 +162,9 @@ import { Form } from '@inertiajs/vue3';
 ### Form Component With All Props
 
 <!-- Form Component Full Example -->
-
 ```vue
 <script setup>
-import { Form } from '@inertiajs/vue3';
+import { Form } from '@inertiajs/vue3'
 </script>
 
 <template>
@@ -187,7 +184,7 @@ import { Form } from '@inertiajs/vue3';
             defaults,
             isDirty,
             reset,
-            submit,
+            submit
         }"
     >
         <input type="text" name="name" :value="defaults.name" />
@@ -217,10 +214,9 @@ The `<Form>` component supports automatic resetting:
 Use the `search-docs` tool with a query of `form component resetting` for detailed guidance.
 
 <!-- Form with Reset Props -->
-
 ```vue
 <script setup>
-import { Form } from '@inertiajs/vue3';
+import { Form } from '@inertiajs/vue3'
 </script>
 
 <template>
@@ -234,7 +230,9 @@ import { Form } from '@inertiajs/vue3';
         <input type="text" name="name" />
         <div v-if="errors.name">{{ errors.name }}</div>
 
-        <button type="submit" :disabled="processing">Submit</button>
+        <button type="submit" :disabled="processing">
+            Submit
+        </button>
     </Form>
 </template>
 ```
@@ -246,21 +244,20 @@ Forms can also be built using the `useForm` composable for more programmatic con
 For more programmatic control or to follow existing conventions, use the `useForm` composable:
 
 <!-- useForm Composable Example -->
-
 ```vue
 <script setup>
-import { useForm } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3'
 
 const form = useForm({
     name: '',
     email: '',
     password: '',
-});
+})
 
 function submit() {
     form.post('/users', {
         onSuccess: () => form.reset('password'),
-    });
+    })
 }
 </script>
 
@@ -275,7 +272,9 @@ function submit() {
         <input type="password" v-model="form.password" />
         <div v-if="form.errors.password">{{ form.errors.password }}</div>
 
-        <button type="submit" :disabled="form.processing">Create User</button>
+        <button type="submit" :disabled="form.processing">
+            Create User
+        </button>
     </form>
 </template>
 ```
@@ -287,21 +286,20 @@ function submit() {
 Use the `useHttp` hook for standalone HTTP requests that do not trigger Inertia page visits. It provides the same developer experience as `useForm`, but for plain JSON endpoints.
 
 <!-- useHttp Example -->
-
 ```vue
 <script setup>
-import { useHttp } from '@inertiajs/vue3';
+import { useHttp } from '@inertiajs/vue3'
 
 const http = useHttp({
     query: '',
-});
+})
 
 function search() {
     http.get('/api/search', {
         onSuccess: (response) => {
-            console.log(response);
+            console.log(response)
         },
-    });
+    })
 }
 </script>
 
@@ -316,20 +314,17 @@ function search() {
 Apply data changes instantly before the server responds, with automatic rollback on failure:
 
 <!-- Optimistic Update with Router -->
-
 ```vue
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3'
 
 function like(post) {
-    router
-        .optimistic((props) => ({
-            post: {
-                ...props.post,
-                likes: props.post.likes + 1,
-            },
-        }))
-        .post(`/posts/${post.id}/like`);
+    router.optimistic((props) => ({
+        post: {
+            ...props.post,
+            likes: props.post.likes + 1,
+        },
+    })).post(`/posts/${post.id}/like`)
 }
 </script>
 ```
@@ -337,17 +332,14 @@ function like(post) {
 Optimistic updates also work with `useForm` and the `<Form>` component:
 
 <!-- Optimistic Update with Form Component -->
-
 ```vue
 <template>
     <Form
         action="/todos"
         method="post"
-        :optimistic="
-            (props, data) => ({
-                todos: [...props.todos, { id: Date.now(), name: data.name, done: false }],
-            })
-        "
+        :optimistic="(props, data) => ({
+            todos: [...props.todos, { id: Date.now(), name: data.name, done: false }],
+        })"
     >
         <input type="text" name="name" />
         <button type="submit">Add Todo</button>
@@ -360,10 +352,9 @@ Optimistic updates also work with `useForm` and the `<Form>` component:
 Navigate to a new page immediately without waiting for the server response. The target component renders right away with shared props, while page-specific props load in the background.
 
 <!-- Instant Visit with Link -->
-
 ```vue
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3'
 </script>
 
 <template>
@@ -384,19 +375,15 @@ import { Link } from '@inertiajs/vue3';
 Share dynamic data between pages and persistent layouts:
 
 <!-- Layout Props in Layout -->
-
 ```vue
 <script setup>
-withDefaults(
-    defineProps({
-        title: String,
-        showSidebar: Boolean,
-    }),
-    {
-        title: 'My App',
-        showSidebar: true,
-    },
-);
+withDefaults(defineProps({
+    title: String,
+    showSidebar: Boolean,
+}), {
+    title: 'My App',
+    showSidebar: true,
+})
 </script>
 
 <template>
@@ -409,15 +396,14 @@ withDefaults(
 ```
 
 <!-- Setting Layout Props from Page -->
-
 ```vue
 <script setup>
-import { setLayoutProps } from '@inertiajs/vue3';
+import { setLayoutProps } from '@inertiajs/vue3'
 
 setLayoutProps({
     title: 'Dashboard',
     showSidebar: false,
-});
+})
 </script>
 
 <template>
@@ -430,12 +416,11 @@ setLayoutProps({
 Use deferred props to load data after initial page render:
 
 <!-- Deferred Props with Empty State -->
-
 ```vue
 <script setup>
 defineProps({
-    users: Array,
-});
+    users: Array
+})
 </script>
 
 <template>
@@ -459,16 +444,15 @@ defineProps({
 Use the `usePoll` composable to automatically refresh data at intervals. It handles cleanup on unmount and throttles polling when the tab is inactive.
 
 <!-- Basic Polling -->
-
 ```vue
 <script setup>
-import { usePoll } from '@inertiajs/vue3';
+import { usePoll } from '@inertiajs/vue3'
 
 defineProps({
-    stats: Object,
-});
+    stats: Object
+})
 
-usePoll(5000);
+usePoll(5000)
 </script>
 
 <template>
@@ -480,31 +464,26 @@ usePoll(5000);
 ```
 
 <!-- Polling With Request Options and Manual Control -->
-
 ```vue
 <script setup>
-import { usePoll } from '@inertiajs/vue3';
+import { usePoll } from '@inertiajs/vue3'
 
 defineProps({
-    stats: Object,
-});
+    stats: Object
+})
 
-const { start, stop } = usePoll(
-    5000,
-    {
-        only: ['stats'],
-        onStart() {
-            console.log('Polling request started');
-        },
-        onFinish() {
-            console.log('Polling request finished');
-        },
+const { start, stop } = usePoll(5000, {
+    only: ['stats'],
+    onStart() {
+        console.log('Polling request started')
     },
-    {
-        autoStart: false,
-        keepAlive: true,
+    onFinish() {
+        console.log('Polling request finished')
     },
-);
+}, {
+    autoStart: false,
+    keepAlive: true,
+})
 </script>
 
 <template>
@@ -525,14 +504,13 @@ const { start, stop } = usePoll(
 Lazy-load a prop when an element scrolls into view. Useful for deferring expensive data that sits below the fold:
 
 <!-- WhenVisible Example -->
-
 ```vue
 <script setup>
-import { WhenVisible } from '@inertiajs/vue3';
+import { WhenVisible } from '@inertiajs/vue3'
 
 defineProps({
-    stats: Object,
-});
+    stats: Object
+})
 </script>
 
 <template>
@@ -561,14 +539,13 @@ defineProps({
 Automatically load additional pages of paginated data as users scroll:
 
 <!-- InfiniteScroll Example -->
-
 ```vue
 <script setup>
-import { InfiniteScroll } from '@inertiajs/vue3';
+import { InfiniteScroll } from '@inertiajs/vue3'
 
 defineProps({
-    users: Object,
-});
+    users: Object
+})
 </script>
 
 <template>

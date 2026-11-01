@@ -21,13 +21,15 @@ The Players module ports `admin-portal/src/views/players/PlayerList.vue`, `Playe
 
 ## Assets
 
-| Asset                             | Existing source                                                                             | Rebuilt location                       |
-| --------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------- |
-| GAME X logo                       | admin-portal/src/assets/gamex.png                                                           | resources/assets/legacy/gamex.png      |
-| Favicon                           | admin-portal/public/favicon.ico                                                             | public/favicon.ico                     |
-| Dashboard navigation icon         | Original NavbarLinks.vue URL: https://img.icons8.com/3d-fluency/94/null/combo-chart.png     | public/images/navigation/dashboard.png |
+The Otso Panalo module ports games, configuration dialogs, bet inspection and CSV/PDF export, quarter results and approval, winner generation/approval, cancellation refunds, and activity history. It reuses the original configuration logos and legal-portrait PDF layout with the shared admin components. New games use their configured jackpot without rollover. See [Otso Panalo mappings and workflows](otso-panalo.md).
+
+| Asset                             | Existing source                                                                             | Rebuilt location                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| GAME X logo                       | admin-portal/src/assets/gamex.png                                                           | resources/assets/legacy/gamex.png        |
+| Favicon                           | admin-portal/public/favicon.ico                                                             | public/favicon.ico                       |
+| Dashboard navigation icon         | Original NavbarLinks.vue URL: https://img.icons8.com/3d-fluency/94/null/combo-chart.png     | public/images/navigation/dashboard.png   |
 | Player List navigation icon       | Original NavbarLinks.vue URL: https://img.icons8.com/3d-fluency/94/null/menu.png            | public/images/navigation/player-list.png |
-| Poppins Regular, Medium, SemiBold | Same font family used by admin-portal/public/index.html; official Google Fonts distribution | resources/assets/fonts/poppins/        |
+| Poppins Regular, Medium, SemiBold | Same font family used by admin-portal/public/index.html; official Google Fonts distribution | resources/assets/fonts/poppins/          |
 
 Logo and favicon bytes are copied unchanged. Poppins is bundled locally from the [Google Fonts Poppins distribution](https://github.com/google/fonts/tree/main/ofl/poppins), with its OFL license alongside the font files. Icons and fonts load locally in the rendered app.
 
