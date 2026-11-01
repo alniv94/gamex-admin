@@ -208,46 +208,6 @@ button:disabled {
     font-size: 14px;
     max-width: 340px;
 }
-.legacy-drawer {
-    box-shadow: 0 0.5rem 1rem rgb(11 11 28 / 7.5%);
-    border: 0;
-}
-.drawer-brand {
-    padding: 20px 16px 16px;
-}
-.drawer-brand .brand-logo {
-    margin: 0 auto;
-}
-.legacy-navigation .v-list-item {
-    min-height: 48px;
-    padding-inline: 16px;
-    font-size: 14px;
-}
-.legacy-navigation .v-list-item-title {
-    font-size: 14px;
-    font-weight: 400;
-}
-.navigation-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 16px;
-    object-fit: contain;
-}
-.legacy-app-bar {
-    z-index: 1006 !important;
-    box-shadow: 0 0.5rem 1rem rgb(11 11 28 / 7.5%) !important;
-}
-.legacy-app-bar .v-toolbar__content {
-    padding-inline: 16px;
-}
-.drawer-toggle {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    background: #fafafa;
-    border-radius: 50%;
-    color: #000;
-}
 .account-menu-button {
     letter-spacing: 1.25px;
     max-width: calc(100vw - 100px);
@@ -320,9 +280,6 @@ button:disabled {
 @media (min-width: 960px) {
     .login-card {
         padding: 32px;
-    }
-    .legacy-app-bar .v-toolbar__content {
-        padding-inline: 24px;
     }
     .dashboard-content {
         padding: 24px;

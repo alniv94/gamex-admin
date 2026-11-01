@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 test('mobile OTP login, dashboard, logout, and guest protection', async ({ page }, info) => {
+    test.setTimeout(60000);
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     const index = ['desktop', 'tablet', 'mobile'].indexOf(info.project.name) + 1;
@@ -54,13 +55,87 @@ test('mobile OTP login, dashboard, logout, and guest protection', async ({ page 
     });
     if (info.project.name !== 'desktop') {
         await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    }
+    const navigation = page.getByLabel('Main navigation', { exact: true });
+    const endingGroup = navigation.getByRole('button', { name: 'Ending Game', exact: true });
+    await expect(endingGroup).toHaveAttribute('aria-expanded', 'true');
+    await endingGroup.click();
+    await expect(
+        navigation.getByRole('link', { name: 'Scheduled Games', exact: true }),
+    ).not.toBeVisible();
+    await expect(navigation.getByRole('link', { name: 'Player List', exact: true })).toBeVisible();
+    await endingGroup.click();
+    await expect(
+        navigation.getByRole('link', { name: 'Scheduled Games', exact: true }),
+    ).toBeVisible();
+    if (info.project.name !== 'desktop') {
         await expect(page.getByRole('img', { name: 'GameX Sports Logo' })).toBeVisible();
+        await page.screenshot({
+            path: `storage/app/visual-baselines/${info.project.name}-sidebar-open.png`,
+            fullPage: true,
+            animations: 'disabled',
+        });
+        await page.getByRole('button', { name: 'Close sidebar', exact: true }).click();
+        await expect(
+            page.getByRole('button', { name: 'Open navigation', exact: true }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
         await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-    } else {
-        await page.getByRole('button', { name: 'Close navigation', exact: true }).click();
         await expect(
             page.getByRole('button', { name: 'Open navigation', exact: true }),
         ).toBeVisible();
+    } else {
+        const expandedWidth = (await navigation.boundingBox())!.width;
+        await expect(
+            navigation.getByRole('link', { name: 'Dashboard', exact: true }),
+        ).toHaveAttribute('aria-current', 'page');
+        await expect(
+            navigation.getByRole('link', { name: 'Player List', exact: true }),
+        ).toBeVisible();
+        await expect(navigation.getByRole('button', { name: 'Settings', exact: true })).toHaveCount(
+            0,
+        );
+        await expect(navigation.getByRole('link', { name: 'Games', exact: true })).toHaveCount(0);
+        await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+        await expect(
+            page.getByRole('button', { name: 'Expand navigation', exact: true }),
+        ).toBeVisible();
+        await expect
+            .poll(async () => (await navigation.boundingBox())!.width)
+            .toBeLessThan(expandedWidth);
+        await expect(
+            navigation.getByRole('link', { name: 'Player List', exact: true }),
+        ).toHaveCount(0);
+        await page.screenshot({
+            path: 'storage/app/visual-baselines/desktop-sidebar-collapsed.png',
+            fullPage: true,
+            animations: 'disabled',
+        });
+        await navigation.getByRole('link', { name: 'Dashboard', exact: true }).hover();
+        await expect(page.getByRole('tooltip', { name: 'Dashboard', exact: true })).toBeVisible();
+        await endingGroup.click();
+        await expect(endingGroup).toHaveAttribute('aria-expanded', 'true');
+        await navigation.getByRole('link', { name: 'Scheduled Games', exact: true }).click();
+        await expect(page).toHaveURL(/\/ending\/games$/);
+        await expect(
+            navigation.getByRole('link', { name: 'Scheduled Games', exact: true }),
+        ).toHaveAttribute('aria-current', 'page');
+        await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+        await navigation.getByRole('link', { name: 'Dashboard', exact: true }).click();
+        await expect(page).toHaveURL(/\/dashboard$/);
+        await expect(
+            page.getByRole('button', { name: 'Expand navigation', exact: true }),
+        ).toBeVisible();
+        await navigation.getByRole('button', { name: 'Players', exact: true }).click();
+        await expect(
+            page.getByRole('button', { name: 'Collapse navigation', exact: true }),
+        ).toBeVisible();
+        await expect(
+            navigation.getByRole('link', { name: 'Player List', exact: true }),
+        ).toBeVisible();
+        await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+        await page.getByRole('button', { name: 'Expand navigation', exact: true }).click();
+        await expect.poll(async () => (await navigation.boundingBox())!.width).toBe(expandedWidth);
     }
     await page.getByRole('button', { name: 'Account menu for Test', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Logout', exact: true }).click();
@@ -68,6 +143,71 @@ test('mobile OTP login, dashboard, logout, and guest protection', async ({ page 
     await expect(page.getByLabel('Mobile Number', { exact: true })).toHaveValue(localMobile);
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/login$/);
+    expect(errors).toEqual([]);
+});
+
+test('Otso Panalo navigation collapses and opens from the icon rail', async ({ page }, info) => {
+    test.setTimeout(60000);
+    const index = ['desktop', 'tablet', 'mobile'].indexOf(info.project.name) + 1;
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('/login');
+    await page.getByLabel('Mobile Number', { exact: true }).fill('918880000' + index);
+    await page.getByRole('button', { name: 'Send OTP', exact: true }).click();
+    await expect(
+        page.getByText(
+            'Local test mode: no SMS was sent. The OTP is in the private notifications folder.',
+            { exact: true },
+        ),
+    ).toBeVisible();
+    const folder = path.resolve('storage/app/private/browser-notifications');
+    const captures = readdirSync(folder).map(
+        (file) =>
+            JSON.parse(readFileSync(path.join(folder, file), 'utf8')) as {
+                recipient: string;
+                message: string;
+            },
+    );
+    const capture = captures.find((record) => record.recipient === '+63918880000' + index)!;
+    await page.getByLabel('OTP', { exact: true }).fill(capture.message.match(/\b([0-9]{6})\b/)![1]);
+    await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    if (info.project.name !== 'desktop') {
+        await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    }
+
+    const navigation = page.getByLabel('Main navigation', { exact: true });
+    const group = navigation.getByRole('button', { name: 'Otso Panalo Game', exact: true });
+    const games = navigation.getByRole('link', { name: 'Games', exact: true });
+    await expect(group).toHaveAttribute('aria-expanded', 'true');
+    await expect(games).toBeVisible();
+    await expect(navigation.getByRole('button', { name: 'Ending Game', exact: true })).toHaveCount(
+        0,
+    );
+    await group.click();
+    await expect(group).toHaveAttribute('aria-expanded', 'false');
+    await expect(games).not.toBeVisible();
+    await expect(navigation.getByRole('link', { name: 'Dashboard', exact: true })).toBeVisible();
+    await group.click();
+    await expect(games).toBeVisible();
+
+    if (info.project.name === 'desktop') {
+        await page.getByRole('button', { name: 'Collapse navigation', exact: true }).click();
+        await expect(games).toHaveCount(0);
+        await group.click();
+        await expect(
+            page.getByRole('button', { name: 'Collapse navigation', exact: true }),
+        ).toBeVisible();
+        await expect(group).toHaveAttribute('aria-expanded', 'true');
+    }
+
+    await games.click();
+    await expect(page).toHaveURL(/\/otso-panalo\/games$/);
+    if (info.project.name !== 'desktop') {
+        await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+    }
+    await expect(games).toHaveAttribute('aria-current', 'page');
+    await expect(group).toHaveClass(/v-list-item--active/);
     expect(errors).toEqual([]);
 });
 
