@@ -37,6 +37,21 @@ test('Otso configuration, fixed jackpot, results, winners, bets filters and expo
     await page.goto('/otso-panalo/configs');
     await page.getByRole('button', { name: 'Create Config', exact: true }).click();
     const dialog = page.getByRole('dialog');
+    await expect(dialog).toHaveAccessibleName('Create Game Config');
+    await expect(dialog.getByText('Save this configuration without activating it.')).toBeVisible();
+    await dialog.locator('input[type="file"]').setInputFiles({
+        name: 'config-logo.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1ioAAAAASUVORK5CYII=',
+            'base64',
+        ),
+    });
+    await expect(dialog.getByAltText('Selected logo preview', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close configuration', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await page.getByRole('button', { name: 'Create Config', exact: true }).click();
+    await expect(dialog.getByAltText('Selected logo preview', { exact: true })).toHaveCount(0);
     await dialog.getByLabel('Name', { exact: true }).fill('Browser Config ' + index);
     for (const [label, amount] of [
         ['Bet Amount', '20'],
@@ -48,6 +63,23 @@ test('Otso configuration, fixed jackpot, results, winners, bets filters and expo
     ]) {
         await dialog.getByLabel(label, { exact: true }).fill(amount);
     }
+    const configSummary = dialog.getByRole('region', { name: 'At a glance', exact: true });
+    await expect(configSummary).toContainText('₱ 20.00');
+    await expect(configSummary).toContainText('₱ 2,500.00');
+    await expect(configSummary).toContainText('20.00%');
+    await dialog.getByRole('combobox', { name: 'Status', exact: true }).press('ArrowDown');
+    await page.getByRole('option', { name: 'Active', exact: true }).click();
+    await expect(dialog.getByRole('status')).toHaveText(
+        'Saving as active will deactivate any other active configuration.',
+    );
+    await dialog.getByRole('combobox', { name: 'Status', exact: true }).press('ArrowDown');
+    await page.getByRole('option', { name: 'Inactive', exact: true }).click();
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+    await dialog.locator('.otso-config-dialog-body').evaluate((element) => {
+        element.scrollTop = 0;
+    });
+    await expect(dialog.getByRole('button', { name: 'Save Config', exact: true })).toBeInViewport();
+    await page.screenshot({ path: info.outputPath('otso-config-create.png'), fullPage: true });
     await dialog.getByRole('button', { name: 'Save Config', exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(
@@ -56,6 +88,18 @@ test('Otso configuration, fixed jackpot, results, winners, bets filters and expo
     await expect(
         page.getByRole('alert').filter({ hasText: 'Game configuration created.' }),
     ).toBeVisible();
+    const configRow = page.getByRole('row').filter({ hasText: 'Browser Config ' + index });
+    await configRow.getByRole('button', { name: 'Edit configuration', exact: true }).click();
+    await expect(dialog).toHaveAccessibleName('Edit Game Config');
+    await expect(dialog.getByLabel('Jackpot Prize', { exact: true })).toHaveValue(
+        /^2500(?:\.00)?$/,
+    );
+    await dialog.getByLabel('Jackpot Prize', { exact: true }).fill('2750');
+    await expect(configSummary).toContainText('₱ 2,750.00');
+    await dialog.getByRole('button', { name: 'Save Config', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(configRow).toContainText('2,750.00');
+    await page.screenshot({ path: info.outputPath('otso-config-list.png'), fullPage: true });
 
     await page.goto('/otso-panalo/games');
     await page.getByRole('button', { name: 'Create Game', exact: true }).click();
