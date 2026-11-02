@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
 use App\Http\Controllers\EndingReportController;
+use App\Http\Controllers\InvestorController;
 use App\Http\Controllers\LuckyFourController;
 use App\Http\Controllers\OtsoPanaloController;
 use App\Http\Controllers\PlayerCashierController;
@@ -24,6 +25,19 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/investors/{section}', [InvestorController::class, 'index'])->whereIn('section', array_keys(InvestorController::SECTIONS))->name('investors.index');
+    Route::get('/investors/{section}/export', [InvestorController::class, 'export'])->whereIn('section', array_keys(InvestorController::SECTIONS))->middleware('throttle:10,1')->name('investors.export');
+    Route::post('/investors/accounts', [InvestorController::class, 'store'])->name('investors.accounts.store');
+    Route::get('/investors/accounts/{investor}', [InvestorController::class, 'show'])->whereNumber('investor')->name('investors.accounts.show');
+    Route::put('/investors/accounts/{investor}', [InvestorController::class, 'update'])->whereNumber('investor')->name('investors.accounts.update');
+    Route::post('/investors/accounts/{investor}/sub-accounts/{account?}', [InvestorController::class, 'subAccount'])->whereNumber(['investor', 'account'])->name('investors.sub-accounts.save');
+    Route::get('/investors/accounts/{investor}/sub-accounts', [InvestorController::class, 'subAccounts'])->whereNumber('investor')->name('investors.sub-accounts.index');
+    Route::get('/investors/accounts/{investor}/hierarchy/{kind}', [InvestorController::class, 'hierarchy'])->whereNumber('investor')->whereIn('kind', ['agents', 'regular-players'])->name('investors.hierarchy');
+    Route::post('/investors/accounts/{investor}/referrals', [InvestorController::class, 'refreshReferrals'])->whereNumber('investor')->name('investors.referrals.refresh');
+    Route::get('/investors/settlements/{kind}/{investor}', [InvestorController::class, 'settlement'])->whereIn('kind', ['payouts', 'commissions'])->whereNumber('investor')->name('investors.settlements.show');
+    Route::post('/investors/settlements/{kind}/{investor}', [InvestorController::class, 'settle'])->whereIn('kind', ['payouts', 'commissions'])->whereNumber('investor')->middleware('throttle:10,1')->name('investors.settlements.store');
+    Route::get('/investors/special/{settlement}', [InvestorController::class, 'specialDetails'])->whereNumber('settlement')->name('investors.special.show');
+    Route::post('/investors/special/{settlement}/{action}', [InvestorController::class, 'specialAction'])->whereNumber('settlement')->whereIn('action', ['verify', 'approve'])->name('investors.special.action');
     Route::get('/ending/reports/{report}', [EndingReportController::class, 'index'])
         ->whereIn('report', array_keys(EndingReports::DEFINITIONS))->name('ending.reports.index');
     Route::get('/ending/reports/{report}/export', [EndingReportController::class, 'export'])

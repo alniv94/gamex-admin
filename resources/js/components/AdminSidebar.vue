@@ -18,6 +18,7 @@ import {
     withdrawalAccounts,
 } from '@/actions/App/Http/Controllers/PlayerController';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
+import { index as investorIndex } from '@/actions/App/Http/Controllers/InvestorController';
 import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
 import { usePermissions } from '@/composables/usePermissions';
 import { dashboard } from '@/routes';
@@ -34,7 +35,15 @@ const emit = defineEmits<{ expand: [] }>();
 const page = usePage<AdminPageProps>();
 const { can, canAny } = usePermissions();
 const { mobile } = useDisplay();
-const openedGroups = ref(['players', 'ending', 'ending-reports', 'otso', 'lucky-four', 'settings']);
+const openedGroups = ref([
+    'players',
+    'ending',
+    'ending-reports',
+    'otso',
+    'lucky-four',
+    'investors',
+    'settings',
+]);
 const currentPath = computed(() => page.url.split(/[?#]/)[0]);
 const playerNavigation = computed(() =>
     [
@@ -85,6 +94,49 @@ const playerNavigation = computed(() =>
 );
 const navigationSections = computed(() =>
     [
+        {
+            value: 'investors',
+            title: 'Investors',
+            icon: 'mdi-account-tie',
+            items: [
+                {
+                    title: 'Investor List',
+                    icon: 'mdi-account-tie',
+                    permission: 'Investors',
+                    route: investorIndex('list'),
+                },
+                {
+                    title: 'Payouts Settlement',
+                    icon: 'mdi-chart-bar',
+                    permission: 'Investors',
+                    route: investorIndex('payouts'),
+                },
+                {
+                    title: 'Commission Settlement',
+                    icon: 'mdi-chart-bar',
+                    permission: 'Investors',
+                    route: investorIndex('commissions'),
+                },
+                {
+                    title: 'Master Agent List',
+                    icon: 'mdi-format-list-bulleted',
+                    permission: 'Investors',
+                    route: investorIndex('master-agents'),
+                },
+                {
+                    title: 'Special Commission Settlement',
+                    icon: 'mdi-cash-check',
+                    permission: 'Special Commission Settlement',
+                    route: investorIndex('special-commissions'),
+                },
+                {
+                    title: 'Referral Links',
+                    icon: 'mdi-share-variant',
+                    permission: 'Investors',
+                    route: investorIndex('referral-links'),
+                },
+            ].filter((item) => can(item.permission)),
+        },
         {
             value: 'ending',
             title: 'Ending Game',
