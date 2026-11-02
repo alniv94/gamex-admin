@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
+import {
+    index as agentIndex,
+    cashins as agentCashins,
+} from '@/actions/App/Http/Controllers/AgentController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { index as endingReport } from '@/actions/App/Http/Controllers/EndingReportController';
 import {
@@ -42,6 +46,7 @@ const openedGroups = ref([
     'otso',
     'lucky-four',
     'investors',
+    'agents',
     'settings',
 ]);
 const currentPath = computed(() => page.url.split(/[?#]/)[0]);
@@ -134,6 +139,25 @@ const navigationSections = computed(() =>
                     icon: 'mdi-share-variant',
                     permission: 'Investors',
                     route: investorIndex('referral-links'),
+                },
+            ].filter((item) => can(item.permission)),
+        },
+        {
+            value: 'agents',
+            title: 'Agents',
+            icon: 'mdi-account-group-outline',
+            items: [
+                {
+                    title: 'Agent List',
+                    icon: 'mdi-format-list-bulleted',
+                    permission: 'Ending Agents',
+                    route: agentIndex(),
+                },
+                {
+                    title: 'Cash In',
+                    icon: 'mdi-cash-plus',
+                    permission: 'Ending Agents',
+                    route: agentCashins(),
                 },
             ].filter((item) => can(item.permission)),
         },

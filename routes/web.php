@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgentController;
 use App\Http\Controllers\Auth\AdminSessionController;
 use App\Http\Controllers\EndingCatalogController;
 use App\Http\Controllers\EndingGameController;
@@ -25,6 +26,17 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/agents/list', [AgentController::class, 'index'])->name('agents.index');
+    Route::get('/agents/cashin', [AgentController::class, 'cashins'])->name('agents.cashins');
+    Route::get('/agents/players/search', [AgentController::class, 'candidates'])->middleware('throttle:30,1')->name('agents.candidates');
+    Route::post('/agents/accounts', [AgentController::class, 'store'])->name('agents.store');
+    Route::get('/agents/accounts/{agent}', [AgentController::class, 'show'])->whereNumber('agent')->name('agents.show');
+    Route::put('/agents/accounts/{agent}', [AgentController::class, 'update'])->whereNumber('agent')->name('agents.update');
+    Route::post('/agents/accounts/{agent}/players', [AgentController::class, 'assign'])->whereNumber('agent')->name('agents.assign');
+    Route::delete('/agents/accounts/{agent}/players/{link}', [AgentController::class, 'remove'])->whereNumber(['agent', 'link'])->name('agents.remove');
+    Route::put('/agents/accounts/{agent}/password', [AgentController::class, 'resetPassword'])->whereNumber('agent')->middleware('throttle:10,1')->name('agents.password');
+    Route::post('/agents/cashin/manual', [AgentController::class, 'fund'])->middleware('throttle:10,1')->name('agents.fund');
+    Route::post('/agents/cashin/{cashin}/{action}', [AgentController::class, 'evaluate'])->whereNumber('cashin')->whereIn('action', ['approve', 'disapprove'])->name('agents.evaluate');
     Route::get('/investors/{section}', [InvestorController::class, 'index'])->whereIn('section', array_keys(InvestorController::SECTIONS))->name('investors.index');
     Route::get('/investors/{section}/export', [InvestorController::class, 'export'])->whereIn('section', array_keys(InvestorController::SECTIONS))->middleware('throttle:10,1')->name('investors.export');
     Route::post('/investors/accounts', [InvestorController::class, 'store'])->name('investors.accounts.store');
