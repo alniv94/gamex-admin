@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { show } from '@/actions/App/Http/Controllers/PlayerController';
 import { router } from '@inertiajs/vue3';
 import { onBeforeUnmount, reactive, ref, watch } from 'vue';
@@ -16,6 +22,7 @@ const search = ref('');
 const loading = ref(false);
 const filterOpen = ref(false);
 const dates = reactive({ activity_date_from: '', activity_date_to: '' });
+const draftDates = reactive({ ...dates });
 const error = ref('');
 watch(
     () => props.filters,
@@ -57,17 +64,43 @@ function debounceSearch() {
 }
 function applyDates() {
     if (
-        dates.activity_date_from &&
-        dates.activity_date_to &&
-        dates.activity_date_to < dates.activity_date_from
+        draftDates.activity_date_from &&
+        draftDates.activity_date_to &&
+        draftDates.activity_date_to < draftDates.activity_date_from
     ) {
         error.value = 'Date To must be on or after Date From.';
         return;
     }
     error.value = '';
+    Object.assign(dates, draftDates);
     visit();
 }
+function openFilters() {
+    Object.assign(draftDates, dates);
+    error.value = '';
+    filterOpen.value = true;
+}
 onBeforeUnmount(() => clearTimeout(timer));
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'ID', key: 'id', sortable: true },
+    { title: 'Admin', key: 'admin', sortable: true },
+    { title: 'Transaction Type', key: 'transaction_type', sortable: true },
+    { title: 'Details', key: 'details', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Date', key: 'created_at', sortable: true },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['activity_search', 'activity_dates'],
+    (changes) => {
+        search.value = String(changes.activity_search ?? '');
+        Object.assign(dates, changes);
+        visit();
+    },
+    undefined,
+);
 </script>
 <template>
     <v-card>
@@ -82,37 +115,41 @@ onBeforeUnmount(() => clearTimeout(timer));
             ><v-tab value="admin_logs">Admin Logs</v-tab>
         </v-tabs>
         <v-divider />
-        <div class="players-toolbar">
-            <v-btn
-                icon="mdi-sync"
-                variant="text"
-                color="secondary"
-                :loading="loading"
-                aria-label="Refresh activity"
-                @click="visit()"
-            />
-            <div class="players-search-controls activity-search">
-                <v-text-field
-                    v-model="search"
-                    placeholder="Search"
-                    aria-label="Search activity"
-                    clearable
-                    hide-details
-                    @update:model-value="debounceSearch"
-                    @keyup.enter="visit()"
-                /><v-btn
-                    icon="mdi-filter-variant"
-                    variant="text"
-                    color="secondary"
-                    aria-label="Filter activity"
-                    @click="filterOpen = true"
-                />
-            </div>
-        </div>
+        <AdminTableToolbar
+            :filters-open="filterOpen"
+            :active-filters="activeFilters"
+            @remove-filter="removeFilter"
+            @reset-filters="resetTableFilters"
+            :total="activity.total"
+            v-model="search"
+            search-label="Search activity"
+            refresh-label="Refresh activity"
+            :exports="[
+                {
+                    title: 'Current page (CSV)',
+                    action: () =>
+                        exportTableItems('players-playeractivity.csv', activity.data, tableHeaders),
+                },
+            ]"
+            @refresh="visit()"
+            @search="debounceSearch"
+            :loading="loading"
+            filterable
+            @filter="openFilters"
+            filter-label="Filter activity"
+        >
+        </AdminTableToolbar>
         <v-progress-linear v-if="loading" indeterminate height="2" color="primary" />
         <v-divider />
-        <v-table v-if="activity.data.length" class="players-table activity-table">
-            <thead>
+        <AdminDataTable
+            v-if="activity.data.length"
+            :headers="tableHeaders"
+            :items="activity.data"
+            server
+            :toolbar="false"
+            title="Activity"
+        >
+            <template #headers>
                 <tr>
                     <th>ID</th>
                     <th v-if="tab === 'admin_logs'">Admin</th>
@@ -121,43 +158,39 @@ onBeforeUnmount(() => clearTimeout(timer));
                     <th v-if="tab === 'transactions'">Amount</th>
                     <th>Date</th>
                 </tr>
-            </thead>
-            <tbody>
-                <tr v-for="row in activity.data" :key="`${row.origin || tab}-${row.id}`">
+            </template>
+            <template #item="{ item: row }"
+                ><tr :key="`${row.origin || tab}-${row.id}`">
                     <td>{{ row.id }}</td>
                     <td v-if="tab === 'admin_logs'">{{ row.admin || '-' }}</td>
                     <td v-if="tab === 'transactions'">{{ row.transaction_type || '-' }}</td>
                     <td class="activity-description">{{ row.details || '-' }}</td>
                     <td v-if="tab === 'transactions'">{{ playerMoney(row.amount) }}</td>
                     <td>{{ playerDate(row.created_at) }}</td>
-                </tr>
-            </tbody>
-        </v-table>
+                </tr></template
+            >
+        </AdminDataTable>
         <div v-else class="text-center text-medium-emphasis pa-6">No data available</div>
         <EndingPager v-if="activity.total" :page="activity" selectable />
-        <v-dialog v-model="filterOpen" max-width="420" class="players-dialog"
-            ><v-card class="pa-6"
-                ><h2 class="mb-5">Filter</h2>
-                <form @submit.prevent="applyDates">
-                    <v-text-field
-                        v-model="dates.activity_date_from"
-                        label="Date From"
-                        type="date"
-                        class="mb-4"
-                    /><v-text-field
-                        v-model="dates.activity_date_to"
-                        label="Date To"
-                        type="date"
-                        :min="dates.activity_date_from || undefined"
-                        :error-messages="error"
-                        class="mb-4"
-                    />
-                    <div class="d-flex justify-end ga-2">
-                        <v-btn variant="text" @click="filterOpen = false">Cancel</v-btn
-                        ><v-btn type="submit" color="primary" :loading="loading">Filter</v-btn>
-                    </div>
-                </form></v-card
-            ></v-dialog
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyDates"
+            @reset="resetTableFilters"
         >
+            <v-text-field
+                v-model="draftDates.activity_date_from"
+                label="Date From"
+                type="date"
+                class="mb-4"
+            /><v-text-field
+                v-model="draftDates.activity_date_to"
+                label="Date To"
+                type="date"
+                :min="draftDates.activity_date_from || undefined"
+                :error-messages="error"
+                class="mb-4"
+            />
+        </AdminFilterDialog>
     </v-card>
 </template>

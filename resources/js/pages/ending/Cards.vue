@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { cardIndex, show } from '@/actions/App/Http/Controllers/EndingGameController';
@@ -60,6 +63,30 @@ function exportCards() {
         ]),
     ]);
 }
+
+const tableHeaders: DataTableHeader<GameCard>[] = [
+    { title: 'Action', key: 'actions', sortable: false },
+    { title: 'Card number', key: 'id', sortable: true },
+    { title: 'Bet amount / type', key: 'amount', sortable: true },
+    { title: 'Total bets', key: 'bets', sortable: true },
+    { title: 'Total bet amount', key: 'total_bet_amount', value: totalBetAmount, sortable: true },
+    { title: 'Betting', key: 'betting', sortable: true },
+];
+const tableHeaders2: DataTableHeader[] = [
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'Quarter', key: 'quarter_id', sortable: true },
+    { title: 'Player / Ticket', key: 'player_name', sortable: true },
+    { title: 'Result', key: 'result', sortable: true },
+    { title: 'Refunded', key: 'refunded', sortable: true },
+];
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    ['search'],
+    (changes) => {
+        search.value = String(changes.search ?? '');
+        filter();
+    },
+);
 </script>
 
 <template>
@@ -72,6 +99,10 @@ function exportCards() {
         </Link>
         <v-card>
             <EndingToolbar
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="cards.total"
                 v-model="search"
                 exportable
                 @search="filter"
@@ -116,8 +147,14 @@ function exportCards() {
                     >Search by card number · Select a card to view its bets</span
                 >
             </div>
-            <v-table class="ending-table ending-card-table" density="compact">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="cards.data"
+                server
+                :toolbar="false"
+                title="Cards"
+            >
+                <template #headers>
                     <tr>
                         <th class="text-center">Action</th>
                         <th>Card number</th>
@@ -126,9 +163,9 @@ function exportCards() {
                         <th>Total bet amount</th>
                         <th>Betting</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="card in cards.data" :key="card.id">
+                </template>
+                <template #item="{ item: card }"
+                    ><tr :key="card.id">
                         <td class="text-center">
                             <v-btn
                                 icon="mdi-text-box-search-outline"
@@ -174,18 +211,16 @@ function exportCards() {
                                 >{{ card.betting }}</v-chip
                             >
                         </td>
-                    </tr>
-                    <tr v-if="!cards.data.length">
-                        <td :colspan="amount ? 5 : 6" class="pa-8 text-center text-medium-emphasis">
-                            {{
-                                search
-                                    ? 'No cards match this card number.'
-                                    : 'No cards created for this selection.'
-                            }}
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>
+                    {{
+                        search
+                            ? 'No cards match this card number.'
+                            : 'No cards created for this selection.'
+                    }}
+                </template>
+            </AdminDataTable>
             <EndingPager :page="cards" selectable />
         </v-card>
         <v-dialog
@@ -225,18 +260,16 @@ function exportCards() {
                         indeterminate
                         aria-label="Loading card bets"
                     />
-                    <v-table v-else density="compact" aria-label="Card bets">
-                        <thead>
-                            <tr>
-                                <th>Combination</th>
-                                <th>Quarter</th>
-                                <th>Player / Ticket</th>
-                                <th>Result</th>
-                                <th>Refunded</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="bet in bets" :key="bet.id">
+                    <AdminDataTable
+                        v-else
+                        aria-label="Card bets"
+                        :headers="tableHeaders2"
+                        :items="bets"
+                        :toolbar="true"
+                        title="Card bets"
+                    >
+                        <template #item="{ item: bet }"
+                            ><tr :key="bet.id">
                                 <td>
                                     <v-chip color="primary" variant="tonal" size="small">{{
                                         bet.combination
@@ -254,14 +287,10 @@ function exportCards() {
                                 </td>
                                 <td>{{ bet.result || 'Pending' }}</td>
                                 <td>{{ bet.refunded }}</td>
-                            </tr>
-                            <tr v-if="!bets.length">
-                                <td colspan="5" class="pa-6 text-center text-medium-emphasis">
-                                    No bets on this card.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </v-table>
+                            </tr></template
+                        >
+                        <template #no-data> No bets on this card. </template>
+                    </AdminDataTable>
                 </v-card-text>
                 <v-card-actions
                     ><v-spacer /><v-btn @click="selectedCard = null">Close</v-btn></v-card-actions

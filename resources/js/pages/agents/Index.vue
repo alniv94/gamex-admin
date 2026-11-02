@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { index, show } from '@/actions/App/Http/Controllers/AgentController';
 import AgentForm from '@/components/agents/AgentForm.vue';
 import AgentShell from '@/components/agents/AgentShell.vue';
@@ -54,6 +60,7 @@ function visit() {
             replace: true,
             onStart: () => (busy.value = true),
             onFinish: () => (busy.value = false),
+            onSuccess: () => (filterOpen.value = false),
         },
     );
 }
@@ -71,98 +78,100 @@ function edit(account?: AgentRow) {
     editor.value = true;
 }
 onBeforeUnmount(() => clearTimeout(timer));
+
+const tableHeaders: DataTableHeader<AgentRow>[] = [
+    { title: 'Actions', key: 'actions', sortable: false },
+    { title: 'Name', key: 'first_name', value: agentName, sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Email', key: 'email_address', sortable: true },
+    { title: 'Username', key: 'username', sortable: true },
+    { title: 'Players', key: 'player_count', sortable: true },
+    { title: 'Verified players', key: 'verified_count', sortable: true },
+    { title: 'Commission', key: 'commission', sortable: true },
+    { title: 'Wallet', key: 'wallet', sortable: true },
+    { title: 'Status', key: 'is_active', sortable: true },
+    { title: 'Created at', key: 'created_at', sortable: true },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        'status',
+        'type',
+        {
+            key: 'outlet_id',
+            options: props.outlets.map((outlet) => ({
+                title: outlet.outlet_name,
+                value: outlet.id,
+            })),
+        },
+        'date_range',
+    ],
+    (changes) => {
+        Object.assign(filters, changes);
+        visit();
+    },
+    undefined,
+);
+const draft = reactive({ ...filters });
+function openFilters() {
+    Object.assign(draft, props.filters);
+    filterOpen.value = true;
+}
+function applyFilters() {
+    Object.assign(filters, draft);
+    visit();
+}
 </script>
 
 <template>
     <AgentShell title="Agent List" :ready="ready">
         <v-card class="agents-panel">
-            <div class="d-flex flex-wrap align-center ga-2 pa-4">
-                <v-btn
-                    v-if="can('Ending Agents Create')"
-                    prepend-icon="mdi-plus"
-                    color="primary"
-                    :disabled="!ready"
-                    @click="edit()"
-                    >Create agent</v-btn
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="records.total"
+                v-model="filters.search"
+                search-label="Search agents"
+                refresh-label="Refresh agents"
+                :exports="[
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('agents-index.csv', records.data, tableHeaders),
+                    },
+                ]"
+                @refresh="visit"
+                @search="search"
+                :loading="busy"
+                filterable
+                @filter="openFilters"
+                filter-label="Filter agents"
+            >
+                <template #actions
+                    ><v-btn
+                        v-if="can('Ending Agents Create')"
+                        prepend-icon="mdi-plus"
+                        color="primary"
+                        :disabled="!ready"
+                        @click="edit()"
+                        >Create agent</v-btn
+                    ></template
                 >
-                <v-btn
-                    icon="mdi-refresh"
-                    variant="text"
-                    aria-label="Refresh agents"
-                    :loading="busy"
-                    @click="visit"
-                />
-                <v-spacer />
-                <v-text-field
-                    v-model="filters.search"
-                    label="Search agents"
-                    prepend-inner-icon="mdi-magnify"
-                    hide-details
-                    clearable
-                    density="compact"
-                    style="max-width: 360px; min-width: 200px"
-                    @update:model-value="search"
-                />
-                <v-btn
-                    icon="mdi-filter-variant"
-                    variant="text"
-                    aria-label="Filter agents"
-                    :aria-expanded="filterOpen"
-                    @click="filterOpen = !filterOpen"
-                />
-            </div>
-            <form v-if="filterOpen" class="pa-4 border-t" @submit.prevent="visit">
-                <v-row dense>
-                    <v-col cols="12" sm="4"
-                        ><v-select
-                            v-model="filters.status"
-                            :items="['All', 'Active', 'Inactive']"
-                            label="Status"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4"
-                        ><v-select
-                            v-model="filters.type"
-                            :items="['All', 'Regular', 'Special']"
-                            label="Agent type"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4"
-                        ><v-select
-                            v-model="filters.outlet_id"
-                            :items="outlets"
-                            item-title="outlet_name"
-                            item-value="id"
-                            label="Outlet"
-                            clearable
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4"
-                        ><v-text-field
-                            v-model="filters.date_from"
-                            :error-messages="page.props.errors.date_from"
-                            type="date"
-                            label="Created from"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4"
-                        ><v-text-field
-                            v-model="filters.date_to"
-                            :error-messages="page.props.errors.date_to"
-                            type="date"
-                            label="Created to"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4" class="d-flex align-center"
-                        ><v-btn type="submit" color="primary" :loading="busy"
-                            >Apply filters</v-btn
-                        ></v-col
-                    >
-                </v-row>
-            </form>
+            </AdminTableToolbar>
+
             <v-progress-linear v-if="busy" indeterminate color="primary" />
-            <v-table class="ending-table" density="compact">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="records.data"
+                server
+                :toolbar="false"
+                title="Agents"
+            >
+                <template #headers>
                     <tr>
                         <th>Actions</th>
                         <AgentSortHeader
@@ -176,9 +185,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             @sort="sort"
                         />
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="agent in records.data" :key="agent.id">
+                </template>
+                <template #item="{ item: agent }"
+                    ><tr :key="agent.id">
                         <td class="text-no-wrap">
                             <v-btn
                                 icon="mdi-pencil-outline"
@@ -246,14 +255,60 @@ onBeforeUnmount(() => clearTimeout(timer));
                             >
                         </td>
                         <td class="text-no-wrap">{{ playerDate(agent.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!records.data.length">
-                        <td colspan="11" class="text-center pa-8">No agents match your filters.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No agents match your filters.</template>
+            </AdminDataTable>
             <EndingPager :page="records" selectable />
         </v-card>
         <AgentForm v-model="editor" :account="editing" :outlets="outlets" />
-    </AgentShell>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="busy"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-row dense>
+                <v-col cols="12" sm="6"
+                    ><v-select
+                        v-model="draft.status"
+                        :items="['All', 'Active', 'Inactive']"
+                        label="Status"
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-select
+                        v-model="draft.type"
+                        :items="['All', 'Regular', 'Special']"
+                        label="Agent type"
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-select
+                        v-model="draft.outlet_id"
+                        :items="outlets"
+                        item-title="outlet_name"
+                        item-value="id"
+                        label="Outlet"
+                        clearable
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_from"
+                        :error-messages="page.props.errors.date_from"
+                        type="date"
+                        label="Created from"
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_to"
+                        :error-messages="page.props.errors.date_to"
+                        type="date"
+                        label="Created to"
+                        hide-details
+                /></v-col>
+            </v-row> </AdminFilterDialog
+    ></AgentShell>
 </template>

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
 import {
     index,
     exportMethod as exportReport,
@@ -54,9 +57,6 @@ const isAgent = computed(() => props.report === 'master-agents-token');
 const isGameReport = computed(
     () => !isCashier.value && !isAgent.value && props.report !== 'transactional',
 );
-const teamsInLeague = computed(() =>
-    props.teams.filter((team) => !form.league_id || team.league_id === Number(form.league_id)),
-);
 const moneyColumns = computed(() => props.columns.filter((column) => column.format === 'money'));
 const summaryLoading = computed(() => props.totals === undefined);
 const headers = computed<DataTableHeader[]>(() =>
@@ -103,6 +103,7 @@ function visit(targetPage = 1) {
             preserveScroll: true,
             replace: true,
             only: ['records', 'filters', 'totals'],
+            onSuccess: () => (filterOpen.value = false),
             onStart: () => {
                 loading.value = true;
             },
@@ -134,6 +135,7 @@ function updateTable(options: { page: number; itemsPerPage: number; sortBy: Data
     visit(options.page);
 }
 function reset() {
+    clearTimeout(timer);
     router.get(index.url(props.report), {}, { preserveScroll: true });
 }
 function exportUrl(scope: 'page' | 'all', format: 'csv' | 'pdf' = 'csv') {
@@ -165,6 +167,56 @@ function gameId(row: Row): number | null {
     return id === null ? null : Number(id);
 }
 onBeforeUnmount(() => clearTimeout(timer));
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        { key: 'date_range', removable: false },
+        {
+            key: 'league_id',
+            options: props.leagues.map((league) => ({ title: league.league, value: league.id })),
+        },
+        {
+            key: 'team_id',
+            options: props.teams.map((team) => ({ title: team.team_name, value: team.id })),
+        },
+        'player_id',
+        'game_id',
+        'card_id',
+        'bet_type_id',
+        'status',
+        ...(isCashier.value ? ['cashier_status'] : []),
+        ...(props.report === 'progress' ? ['period'] : []),
+        {
+            key: 'filter_by',
+            resetValue: 'scheduled',
+            ignore: ['scheduled'],
+            options: [
+                { title: 'Schedule date', value: 'scheduled' },
+                { title: 'Bet date', value: 'bet' },
+            ],
+        },
+    ],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    reset,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...form });
+const draftTeamsInLeague = computed(() =>
+    props.teams.filter((team) => !draft.league_id || team.league_id === Number(draft.league_id)),
+);
+function openFilters() {
+    Object.assign(draft, form);
+    filterOpen.value = true;
+}
+function applyFilters() {
+    Object.assign(form, draft);
+    visit();
+}
 </script>
 
 <template>
@@ -208,51 +260,6 @@ onBeforeUnmount(() => clearTimeout(timer));
                             </v-chip>
                         </div>
                     </v-col>
-                    <v-col cols="12" md="auto">
-                        <div class="d-flex flex-wrap ga-2">
-                            <v-btn
-                                prepend-icon="mdi-refresh"
-                                variant="outlined"
-                                color="blue-grey-darken-2"
-                                class="flex-grow-1 flex-sm-grow-0"
-                                :loading="loading"
-                                @click="visit(records.current_page)"
-                                >Refresh report</v-btn
-                            >
-                            <v-menu>
-                                <template #activator="{ props: menuProps }">
-                                    <v-btn
-                                        v-bind="menuProps"
-                                        prepend-icon="mdi-download-outline"
-                                        append-icon="mdi-chevron-down"
-                                        color="light-blue-darken-2"
-                                        class="flex-grow-1 flex-sm-grow-0"
-                                        :disabled="loading"
-                                        >Export report</v-btn
-                                    >
-                                </template>
-                                <v-list density="compact">
-                                    <v-list-subheader>EXPORT REPORT</v-list-subheader>
-                                    <v-list-item
-                                        prepend-icon="mdi-file-delimited-outline"
-                                        title="CSV · All matching records"
-                                        subtitle="Opens in Excel"
-                                        :href="exportUrl('all')"
-                                    />
-                                    <v-list-item
-                                        prepend-icon="mdi-file-delimited-outline"
-                                        title="CSV · Current page"
-                                        :href="exportUrl('page')"
-                                    />
-                                    <v-list-item
-                                        prepend-icon="mdi-file-pdf-box"
-                                        title="PDF · Current page"
-                                        :href="exportUrl('page', 'pdf')"
-                                    />
-                                </v-list>
-                            </v-menu>
-                        </div>
-                    </v-col>
                 </v-row>
                 <p class="text-body-medium text-medium-emphasis mt-0 mb-6">
                     <template v-if="isAgent"
@@ -271,237 +278,6 @@ onBeforeUnmount(() => clearTimeout(timer));
                         from payout amounts.</template
                     >
                 </p>
-
-                <v-card class="mb-5">
-                    <v-card-item class="px-4 px-sm-6 pt-5 pb-0">
-                        <template #prepend>
-                            <v-avatar
-                                icon="mdi-filter-variant"
-                                color="light-blue-darken-2"
-                                variant="tonal"
-                                rounded="lg"
-                                size="36"
-                                class="mr-2"
-                            />
-                        </template>
-                        <v-card-title tag="h2" class="text-title-small font-weight-semibold ma-0"
-                            >Report filters</v-card-title
-                        >
-                        <v-card-subtitle class="text-body-small text-wrap">
-                            Choose a date range and refine your results.
-                        </v-card-subtitle>
-                    </v-card-item>
-                    <form @submit.prevent="visit()">
-                        <v-card-text class="pa-4 pa-sm-6">
-                            <v-row>
-                                <v-col cols="12" sm="6" md="4" lg="3">
-                                    <v-text-field
-                                        v-model="form.date_from"
-                                        type="date"
-                                        label="Date from"
-                                        :error-messages="page.props.errors.date_from"
-                                        hide-details="auto"
-                                        persistent-placeholder
-                                        required
-                                    />
-                                </v-col>
-                                <v-col cols="12" sm="6" md="4" lg="3">
-                                    <v-text-field
-                                        v-model="form.date_to"
-                                        type="date"
-                                        label="Date to"
-                                        :min="String(form.date_from)"
-                                        :error-messages="page.props.errors.date_to"
-                                        hide-details="auto"
-                                        persistent-placeholder
-                                        required
-                                    />
-                                </v-col>
-                                <v-col v-if="isGameReport" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.league_id"
-                                        label="League"
-                                        :items="leagues"
-                                        item-title="league"
-                                        item-value="id"
-                                        placeholder="All leagues"
-                                        persistent-placeholder
-                                        clearable
-                                        hide-details
-                                        @update:model-value="form.team_id = null"
-                                    />
-                                </v-col>
-                                <v-col v-if="isGameReport" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.team_id"
-                                        label="Team"
-                                        :items="teamsInLeague"
-                                        item-title="team_name"
-                                        item-value="id"
-                                        placeholder="All teams"
-                                        persistent-placeholder
-                                        clearable
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col v-if="isGameReport" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.status"
-                                        label="Game status"
-                                        :items="['All', 'Not Started', 'Ongoing', 'Finished']"
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col v-if="isGameReport" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.filter_by"
-                                        label="Date basis"
-                                        :items="[
-                                            { title: 'Scheduled date', value: 'scheduled' },
-                                            {
-                                                title:
-                                                    report === 'progress'
-                                                        ? 'Bet / payout date'
-                                                        : 'Bet date',
-                                                value: 'bet',
-                                            },
-                                        ]"
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col
-                                    v-if="
-                                        isGameReport &&
-                                        ['bets', 'game-card', 'cards'].includes(report)
-                                    "
-                                    cols="12"
-                                    sm="6"
-                                    md="4"
-                                    lg="3"
-                                >
-                                    <v-select
-                                        v-model="form.bet_type_id"
-                                        label="Bet type"
-                                        placeholder="All bet types"
-                                        persistent-placeholder
-                                        :items="[
-                                            { title: 'Traditional', value: 1 },
-                                            { title: 'Per Quarter', value: 2 },
-                                        ]"
-                                        clearable
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col v-if="report === 'progress'" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.period"
-                                        label="Group by"
-                                        :items="[
-                                            { title: 'Daily', value: 'daily' },
-                                            { title: 'Weekly', value: 'weekly' },
-                                            { title: 'Monthly', value: 'monthly' },
-                                            { title: 'Yearly', value: 'yearly' },
-                                        ]"
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col v-if="isCashier" cols="12" sm="6" md="4" lg="3">
-                                    <v-select
-                                        v-model="form.cashier_status"
-                                        label="Approval status"
-                                        :items="[
-                                            'All',
-                                            'Pending',
-                                            'Verified',
-                                            'Approved',
-                                            'Disapproved',
-                                            'Rejected',
-                                        ]"
-                                        hide-details
-                                    />
-                                </v-col>
-                                <v-col
-                                    v-if="
-                                        ['bets', 'transactional', 'cash-in', 'cash-out'].includes(
-                                            report,
-                                        )
-                                    "
-                                    cols="12"
-                                    sm="6"
-                                    md="4"
-                                    lg="3"
-                                >
-                                    <v-text-field
-                                        v-model="form.player_id"
-                                        type="number"
-                                        min="1"
-                                        label="Player ID"
-                                        hide-details="auto"
-                                        :error-messages="page.props.errors.player_id"
-                                        clearable
-                                    />
-                                </v-col>
-                                <v-col v-if="isGameReport" cols="12" sm="6" md="4" lg="3">
-                                    <v-text-field
-                                        v-model="form.game_id"
-                                        type="number"
-                                        min="1"
-                                        label="Game ID"
-                                        hide-details="auto"
-                                        :error-messages="page.props.errors.game_id"
-                                        clearable
-                                    />
-                                </v-col>
-                                <v-col
-                                    v-if="['bets', 'game-card'].includes(report)"
-                                    cols="12"
-                                    sm="6"
-                                    md="4"
-                                    lg="3"
-                                >
-                                    <v-text-field
-                                        v-model="form.card_id"
-                                        type="number"
-                                        min="1"
-                                        label="Card number"
-                                        hide-details="auto"
-                                        :error-messages="page.props.errors.card_id"
-                                        clearable
-                                    />
-                                </v-col>
-                            </v-row>
-                        </v-card-text>
-                        <v-divider />
-                        <v-card-actions
-                            class="d-flex flex-wrap justify-space-between ga-3 px-4 px-sm-6 py-3 bg-grey-lighten-5"
-                        >
-                            <span
-                                class="d-inline-flex align-center ga-2 text-body-small text-medium-emphasis"
-                            >
-                                <v-icon icon="mdi-clock-outline" size="16" />
-                                Philippine time (PHT)
-                            </span>
-                            <div class="d-flex flex-wrap justify-end flex-grow-1 ga-2">
-                                <v-btn
-                                    variant="text"
-                                    color="blue-grey-darken-2"
-                                    prepend-icon="mdi-filter-remove-outline"
-                                    :disabled="loading"
-                                    @click="reset"
-                                    >Reset filters</v-btn
-                                >
-                                <v-btn
-                                    type="submit"
-                                    variant="flat"
-                                    color="light-blue-darken-2"
-                                    prepend-icon="mdi-filter-check-outline"
-                                    :loading="loading"
-                                    >Apply filters</v-btn
-                                >
-                            </div>
-                        </v-card-actions>
-                    </form>
-                </v-card>
 
                 <v-row aria-label="Report totals" aria-live="polite" :aria-busy="summaryLoading">
                     <v-col
@@ -550,33 +326,27 @@ onBeforeUnmount(() => clearTimeout(timer));
                 </p>
 
                 <v-card>
-                    <v-card-text class="px-4 px-sm-6 py-4">
-                        <v-row align="center">
-                            <v-col cols="12" sm="6" md="8">
-                                <h2 class="text-title-small font-weight-semibold ma-0">
-                                    {{ title }} report
-                                </h2>
-                                <p class="text-body-small text-medium-emphasis mt-1 mb-0">
-                                    {{ records.total.toLocaleString() }} matching
-                                    {{ records.total === 1 ? 'record' : 'records' }}
-                                </p>
-                            </v-col>
-                            <v-col cols="12" sm="6" md="4">
-                                <v-text-field
-                                    v-model="form.search"
-                                    placeholder="Search report…"
-                                    aria-label="Search report"
-                                    prepend-inner-icon="mdi-magnify"
-                                    clearable
-                                    maxlength="100"
-                                    hide-details="auto"
-                                    :error-messages="page.props.errors.search"
-                                    @update:model-value="search"
-                                    @keyup.enter="visit()"
-                                />
-                            </v-col>
-                        </v-row>
-                    </v-card-text>
+                    <AdminTableToolbar
+                        :filters-open="filterOpen"
+                        filterable
+                        @filter="openFilters"
+                        :active-filters="activeFilters"
+                        @remove-filter="removeFilter"
+                        @reset-filters="resetTableFilters"
+                        :total="records.total"
+                        v-model="form.search"
+                        :title="title + ' report'"
+                        search-label="Search report"
+                        refresh-label="Refresh report"
+                        :loading="loading"
+                        :exports="[
+                            { title: 'CSV ? All matching records', href: exportUrl('all') },
+                            { title: 'CSV ? Current page', href: exportUrl('page') },
+                            { title: 'PDF ? Current page', href: exportUrl('page', 'pdf') },
+                        ]"
+                        @search="search"
+                        @refresh="visit(records.current_page)"
+                    />
                     <p
                         v-if="columns.length > 5"
                         class="d-flex d-lg-none align-center ga-2 text-body-small text-medium-emphasis px-4 pb-3"
@@ -598,7 +368,7 @@ onBeforeUnmount(() => clearTimeout(timer));
                         :mobile="false"
                         :aria-label="`${title} report`"
                         :aria-busy="loading"
-                        class="text-blue-grey-darken-4"
+                        class="admin-table"
                         color="light-blue-darken-2"
                         striped="even"
                         fixed-header
@@ -671,5 +441,169 @@ onBeforeUnmount(() => clearTimeout(timer));
                 </v-card>
             </v-container>
         </v-defaults-provider>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-row>
+                <v-col cols="12" sm="6">
+                    <v-text-field
+                        v-model="draft.date_from"
+                        type="date"
+                        label="Date from"
+                        :error-messages="page.props.errors.date_from"
+                        hide-details="auto"
+                        persistent-placeholder
+                        required
+                    />
+                </v-col>
+                <v-col cols="12" sm="6">
+                    <v-text-field
+                        v-model="draft.date_to"
+                        type="date"
+                        label="Date to"
+                        :min="String(draft.date_from)"
+                        :error-messages="page.props.errors.date_to"
+                        hide-details="auto"
+                        persistent-placeholder
+                        required
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isGameReport">
+                    <v-select
+                        v-model="draft.league_id"
+                        label="League"
+                        :items="leagues"
+                        item-title="league"
+                        item-value="id"
+                        placeholder="All leagues"
+                        persistent-placeholder
+                        clearable
+                        hide-details
+                        @update:model-value="draft.team_id = null"
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isGameReport">
+                    <v-select
+                        v-model="draft.team_id"
+                        label="Team"
+                        :items="draftTeamsInLeague"
+                        item-title="team_name"
+                        item-value="id"
+                        placeholder="All teams"
+                        persistent-placeholder
+                        clearable
+                        hide-details
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isGameReport">
+                    <v-select
+                        v-model="draft.status"
+                        label="Game status"
+                        :items="['All', 'Not Started', 'Ongoing', 'Finished']"
+                        hide-details
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isGameReport">
+                    <v-select
+                        v-model="draft.filter_by"
+                        label="Date basis"
+                        :items="[
+                            { title: 'Scheduled date', value: 'scheduled' },
+                            {
+                                title: report === 'progress' ? 'Bet / payout date' : 'Bet date',
+                                value: 'bet',
+                            },
+                        ]"
+                        hide-details
+                    />
+                </v-col>
+                <v-col
+                    cols="12"
+                    sm="6"
+                    v-if="isGameReport && ['bets', 'game-card', 'cards'].includes(report)"
+                >
+                    <v-select
+                        v-model="draft.bet_type_id"
+                        label="Bet type"
+                        placeholder="All bet types"
+                        persistent-placeholder
+                        :items="[
+                            { title: 'Traditional', value: 1 },
+                            { title: 'Per Quarter', value: 2 },
+                        ]"
+                        clearable
+                        hide-details
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="report === 'progress'">
+                    <v-select
+                        v-model="draft.period"
+                        label="Group by"
+                        :items="[
+                            { title: 'Daily', value: 'daily' },
+                            { title: 'Weekly', value: 'weekly' },
+                            { title: 'Monthly', value: 'monthly' },
+                            { title: 'Yearly', value: 'yearly' },
+                        ]"
+                        hide-details
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isCashier">
+                    <v-select
+                        v-model="draft.cashier_status"
+                        label="Approval status"
+                        :items="[
+                            'All',
+                            'Pending',
+                            'Verified',
+                            'Approved',
+                            'Disapproved',
+                            'Rejected',
+                        ]"
+                        hide-details
+                    />
+                </v-col>
+                <v-col
+                    cols="12"
+                    sm="6"
+                    v-if="['bets', 'transactional', 'cash-in', 'cash-out'].includes(report)"
+                >
+                    <v-text-field
+                        v-model="draft.player_id"
+                        type="number"
+                        min="1"
+                        label="Player ID"
+                        hide-details="auto"
+                        :error-messages="page.props.errors.player_id"
+                        clearable
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="isGameReport">
+                    <v-text-field
+                        v-model="draft.game_id"
+                        type="number"
+                        min="1"
+                        label="Game ID"
+                        hide-details="auto"
+                        :error-messages="page.props.errors.game_id"
+                        clearable
+                    />
+                </v-col>
+                <v-col cols="12" sm="6" v-if="['bets', 'game-card'].includes(report)">
+                    <v-text-field
+                        v-model="draft.card_id"
+                        type="number"
+                        min="1"
+                        label="Card number"
+                        hide-details="auto"
+                        :error-messages="page.props.errors.card_id"
+                        clearable
+                    />
+                </v-col>
+            </v-row>
+        </AdminFilterDialog>
     </div>
 </template>

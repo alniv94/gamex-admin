@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import {
     index,
     show,
@@ -95,51 +100,66 @@ const headers = [
     { title: 'Others', key: '' },
 ];
 onBeforeUnmount(() => clearTimeout(timer));
+const tableHeaders = [
+    { title: 'ID', key: 'id' },
+    { title: 'Action', key: 'actions', sortable: false },
+    { title: 'Name', key: 'name' },
+    { title: 'Mobile number', key: 'mobile_number' },
+    { title: 'Email address', key: 'email_address' },
+    { title: 'Verification status', key: 'account_verified' },
+    { title: 'Verified date', key: 'verified_at' },
+    { title: 'Registered date', key: 'created_at' },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        { key: 'status', defaultValue: 'Active' },
+        { key: 'account_verified', defaultValue: 'Files Submitted' },
+        { key: 'type', resetValue: 'Players', ignore: ['Players'] },
+        'date_range',
+        'duplicate_of',
+    ],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    undefined,
+);
 </script>
 
 <template>
     <PlayerShell :title="filters.duplicate_of ? 'Duplicate Players' : 'Player List'">
         <v-card>
-            <div class="players-toolbar">
-                <div class="d-flex ga-1">
-                    <v-btn
-                        icon="mdi-sync"
-                        variant="text"
-                        color="secondary"
-                        aria-label="Refresh players"
-                        title="Refresh"
-                        :loading="loading"
-                        @click="visit"
-                    />
-                    <v-btn
-                        :href="exportPlayers.url({ query: { ...form } })"
-                        icon="mdi-file-delimited-outline"
-                        variant="text"
-                        color="secondary"
-                        aria-label="Export players to CSV"
-                        title="Export to EXCEL"
-                    />
-                </div>
-                <div class="players-search-controls">
-                    <v-text-field
-                        v-model="form.search"
-                        placeholder="Search name, mobile, email"
-                        aria-label="Search name, mobile, email"
-                        hide-details
-                        clearable
-                        @update:model-value="search"
-                        @keyup.enter="visit"
-                    />
-                    <v-btn
-                        icon="mdi-filter-variant"
-                        variant="text"
-                        color="secondary"
-                        aria-label="Filter players"
-                        title="Filter"
-                        @click="openFilters"
-                    />
-                </div>
-            </div>
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="players.total"
+                v-model="form.search"
+                search-label="Search name, mobile, email"
+                refresh-label="Refresh players"
+                :exports="[
+                    {
+                        title: 'All matching players (CSV)',
+                        href: exportPlayers.url({ query: { ...form } }),
+                    },
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('players-list.csv', players.data, tableHeaders),
+                    },
+                ]"
+                @refresh="visit"
+                @search="search"
+                :loading="loading"
+                filterable
+                @filter="openFilters"
+                filter-label="Filter players"
+            >
+            </AdminTableToolbar>
             <v-progress-linear v-if="loading" indeterminate color="primary" height="2" />
             <v-divider />
             <v-alert
@@ -149,8 +169,14 @@ onBeforeUnmount(() => clearTimeout(timer));
                 class="ma-4"
                 >{{ Object.values(page.props.errors)[0] }}</v-alert
             >
-            <v-table class="players-table">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="players.data"
+                server
+                :toolbar="false"
+                title="Players"
+            >
+                <template #headers>
                     <tr>
                         <th
                             v-for="(header, n) in headers"
@@ -182,9 +208,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             <template v-else>{{ header.title }}</template>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="player in players.data" :key="player.id">
+                </template>
+                <template #item="{ item: player }"
+                    ><tr :key="player.id">
                         <td>{{ player.id }}</td>
                         <td>
                             <v-btn
@@ -205,66 +231,51 @@ onBeforeUnmount(() => clearTimeout(timer));
                         <td><PlayerStatus :status="player.account_verified" /></td>
                         <td>{{ playerDate(player.verified_at) }}</td>
                         <td>{{ playerDate(player.created_at) }}</td>
-                        <td><OtherDetails :player="player" /></td>
-                    </tr>
-                    <tr v-if="!players.data.length">
-                        <td colspan="9" class="text-center text-medium-emphasis py-8">
-                            No data available
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                        <td><OtherDetails :player="player" /></td></tr
+                ></template>
+                <template #no-data> No data available </template>
+            </AdminDataTable>
             <EndingPager :page="players" selectable />
         </v-card>
-        <v-dialog v-model="filterOpen" max-width="500" :persistent="loading" class="players-dialog">
-            <v-card class="pa-6">
-                <h2 class="mb-5">Filter</h2>
-                <form @submit.prevent="applyFilters">
-                    <v-select
-                        v-model="draft.type"
-                        label="Type"
-                        :items="['Players', 'Duplicate Players']"
-                        variant="outlined"
-                        density="compact"
-                        class="mb-4"
-                    />
-                    <v-select
-                        v-model="draft.status"
-                        label="Status"
-                        :items="['All', 'Active', 'Inactive']"
-                        variant="outlined"
-                        density="compact"
-                        class="mb-4"
-                    />
-                    <v-select
-                        v-model="draft.account_verified"
-                        label="Verification Status"
-                        :items="['All', 'Verified', 'Pending', 'Files Submitted', 'Rejected']"
-                        variant="outlined"
-                        density="compact"
-                        class="mb-4"
-                    />
-                    <v-text-field
-                        v-model="draft.date_from"
-                        type="date"
-                        label="Date From"
-                        class="mb-4"
-                    />
-                    <v-text-field
-                        v-model="draft.date_to"
-                        type="date"
-                        label="Date To"
-                        :min="draft.date_from || undefined"
-                        class="mb-4"
-                        :error-messages="filterError"
-                    />
-                    <div class="d-flex justify-end ga-2">
-                        <v-btn variant="text" :disabled="loading" @click="filterOpen = false"
-                            >Cancel</v-btn
-                        ><v-btn type="submit" color="primary" :loading="loading">Apply</v-btn>
-                    </div>
-                </form>
-            </v-card>
-        </v-dialog>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-select
+                v-model="draft.type"
+                label="Type"
+                :items="['Players', 'Duplicate Players']"
+                variant="outlined"
+                density="compact"
+                class="mb-4"
+            />
+            <v-select
+                v-model="draft.status"
+                label="Status"
+                :items="['All', 'Active', 'Inactive']"
+                variant="outlined"
+                density="compact"
+                class="mb-4"
+            />
+            <v-select
+                v-model="draft.account_verified"
+                label="Verification Status"
+                :items="['All', 'Verified', 'Pending', 'Files Submitted', 'Rejected']"
+                variant="outlined"
+                density="compact"
+                class="mb-4"
+            />
+            <v-text-field v-model="draft.date_from" type="date" label="Date From" class="mb-4" />
+            <v-text-field
+                v-model="draft.date_to"
+                type="date"
+                label="Date To"
+                :min="draft.date_from || undefined"
+                class="mb-4"
+                :error-messages="filterError"
+            />
+        </AdminFilterDialog>
     </PlayerShell>
 </template>

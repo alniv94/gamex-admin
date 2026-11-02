@@ -1,5 +1,6 @@
 @import '@mdi/font/css/materialdesignicons.css';
 @import './players.css';
+@import './tables.css';
 
 @font-face {
     font-family: Poppins;

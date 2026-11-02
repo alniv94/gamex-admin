@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { subAccounts, subAccount } from '@/actions/App/Http/Controllers/InvestorController';
 import type { Investor, InvestorSubAccount } from '@/types/investors';
 import { investorName } from '@/types/investors';
@@ -53,6 +55,14 @@ function save() {
 }
 onMounted(load);
 onBeforeUnmount(() => http.cancel());
+
+const tableHeaders: DataTableHeader<InvestorSubAccount>[] = [
+    { title: 'Action', key: 'actions', sortable: false },
+    { title: 'Name', key: 'first_name', value: investorName, sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Date created', key: 'created_at', sortable: true },
+];
 </script>
 
 <template>
@@ -85,18 +95,16 @@ onBeforeUnmount(() => http.cancel());
                 />
             </div>
             <v-progress-linear v-if="http.processing" indeterminate />
-            <v-table class="players-table" :aria-busy="http.processing">
-                <thead>
-                    <tr>
-                        <th>Action</th>
-                        <th>Name</th>
-                        <th>Mobile number</th>
-                        <th>Status</th>
-                        <th>Date created</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="account in http.response?.records ?? []" :key="account.id">
+            <AdminDataTable
+                :refresh="load"
+                :aria-busy="http.processing"
+                :headers="tableHeaders"
+                :items="http.response?.records ?? []"
+                :toolbar="true"
+                title="Sub accounts"
+            >
+                <template #item="{ item: account }"
+                    ><tr :key="account.id">
                         <td>
                             <v-btn
                                 icon="mdi-square-edit-outline"
@@ -110,12 +118,10 @@ onBeforeUnmount(() => http.cancel());
                         <td>+63{{ account.mobile_number }}</td>
                         <td>{{ account.status }}</td>
                         <td>{{ playerDate(account.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!http.processing && !http.response?.records.length">
-                        <td colspan="5" class="text-center pa-6">No sub-accounts.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No sub-accounts.</template>
+            </AdminDataTable>
         </v-card-text>
         <v-dialog v-model="editorOpen" max-width="600" persistent>
             <v-form @submit.prevent="save">

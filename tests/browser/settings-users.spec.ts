@@ -130,7 +130,7 @@ test('settings manages role permissions, direct grants and user activation at ea
     await expect(statusDialog).not.toBeVisible();
     await expect(userRow.getByText('Active', { exact: true })).toBeVisible();
     await page.getByLabel('Search users', { exact: true }).fill(userName);
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await page.getByLabel('Search users', { exact: true }).press('Enter');
     await expect(page.locator('tbody tr')).toHaveCount(1);
     await expect(page.locator('tbody tr')).toContainText(userName);
     await page.screenshot({ path: info.outputPath('users.png'), fullPage: true });

@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
+import { reactive, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import {
     bets as betsRoute,
@@ -22,61 +29,83 @@ const form = useForm({
     date_to: props.filters.date_to || '',
 });
 function filter() {
-    form.get(betsRoute.url(), { preserveState: true });
+    form.transform((data) => ({ ...data, per_page: props.bets.per_page })).get(betsRoute.url(), {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => (filterOpen.value = false),
+    });
+}
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Ending bet', key: 'ending_bet_id', sortable: true },
+    { title: 'Game', key: 'game_id', sortable: true },
+    { title: 'Player', key: 'player_name', sortable: true },
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Pool status', key: 'is_added', sortable: true },
+    { title: 'Winner status', key: 'winner_status', sortable: true },
+    { title: 'Prize', key: 'prize_amount', sortable: true },
+    { title: 'Released', key: 'prize_released', sortable: true },
+    { title: 'Bet at', key: 'created_at', sortable: true },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['search', 'game_id', 'date_range'],
+    (changes) => {
+        Object.assign(form, changes);
+        filter();
+    },
+    undefined,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...form.data() });
+function openFilters() {
+    Object.assign(draft, form.data());
+    filterOpen.value = true;
+}
+function applyFilters() {
+    Object.assign(form, draft);
+    filter();
 }
 </script>
 <template>
     <LuckyFourShell title="Bets" :migration-ready="migrationReady">
         <v-card>
-            <form class="pa-4" @submit.prevent="filter">
-                <v-row dense>
-                    <v-col cols="12" md="3"
-                        ><v-text-field
-                            v-model="form.search"
-                            label="Player, combination or Ending bet"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="12" sm="4" md="2"
-                        ><v-text-field
-                            v-model="form.game_id"
-                            label="Game ID"
-                            type="number"
-                            min="1"
-                            :error-messages="form.errors.game_id"
-                    /></v-col>
-                    <v-col cols="6" sm="4" md="2"
-                        ><v-text-field
-                            v-model="form.date_from"
-                            label="Bet from (Manila)"
-                            type="date"
-                            :error-messages="form.errors.date_from"
-                    /></v-col>
-                    <v-col cols="6" sm="4" md="2"
-                        ><v-text-field
-                            v-model="form.date_to"
-                            label="Bet to (Manila)"
-                            type="date"
-                            :error-messages="form.errors.date_to"
-                    /></v-col>
-                    <v-col cols="12" md="3" class="d-flex flex-wrap ga-2"
-                        ><v-btn type="submit" color="primary" :loading="form.processing"
-                            >Filter</v-btn
-                        ><v-btn variant="text" @click="router.visit(betsRoute())"
-                            >Reset</v-btn
-                        ></v-col
-                    >
-                </v-row>
-            </form>
-            <div class="px-4 pb-4">
-                <v-btn
-                    :href="exportBets.url({ query: { ...filters } })"
-                    variant="outlined"
-                    prepend-icon="mdi-download"
-                    >Export CSV</v-btn
-                >
-            </div>
-            <v-table class="ending-table"
-                ><thead>
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                filterable
+                @filter="openFilters"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="bets.total"
+                v-model="form.search"
+                search-label="Search bets"
+                :loading="form.processing"
+                :exports="[
+                    {
+                        title: 'All matching bets (CSV)',
+                        href: exportBets.url({ query: { ...filters } }),
+                    },
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('lucky-four-bets.csv', bets.data, tableHeaders),
+                    },
+                ]"
+                @search="filter"
+                @refresh="filter"
+            ></AdminTableToolbar>
+
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="bets.data"
+                server
+                :toolbar="false"
+                title="Bets"
+            >
+                <template #headers>
                     <tr>
                         <th>Ending bet</th>
                         <th>Game</th>
@@ -89,9 +118,9 @@ function filter() {
                         <th>Released</th>
                         <th>Bet at</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="bet in bets.data" :key="bet.id">
+                </template>
+                <template #item="{ item: bet }"
+                    ><tr :key="bet.id">
                         <td>#{{ bet.ending_bet_id }}</td>
                         <td>
                             <v-btn
@@ -112,12 +141,40 @@ function filter() {
                         <td>{{ bet.prize_amount === null ? '—' : money(bet.prize_amount) }}</td>
                         <td>{{ bet.prize_released || '—' }}</td>
                         <td>{{ displayDate(bet.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!bets.data.length">
-                        <td colspan="10" class="text-center pa-6">No bets match these filters.</td>
-                    </tr>
-                </tbody></v-table
+                    </tr></template
+                >
+                <template #no-data>No bets match these filters.</template> </AdminDataTable
             ><EndingPager :page="bets" selectable />
         </v-card>
-    </LuckyFourShell>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="form.processing"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-row dense>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.game_id"
+                        label="Game ID"
+                        type="number"
+                        min="1"
+                        :error-messages="form.errors.game_id"
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_from"
+                        label="Bet from (Manila)"
+                        type="date"
+                        :error-messages="form.errors.date_from"
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_to"
+                        label="Bet to (Manila)"
+                        type="date"
+                        :error-messages="form.errors.date_to"
+                /></v-col>
+            </v-row> </AdminFilterDialog
+    ></LuckyFourShell>
 </template>

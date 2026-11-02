@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
+import { reactive, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { index, show } from '@/actions/App/Http/Controllers/LuckyFourController';
 import LuckyFourShell from '@/components/lucky-four/LuckyFourShell.vue';
@@ -19,7 +26,53 @@ const form = useForm({
     date_to: props.filters.date_to || '',
 });
 function filter() {
-    form.get(index.url(), { preserveState: true });
+    form.transform((data) => ({ ...data, per_page: props.games.per_page })).get(index.url(), {
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => (filterOpen.value = false),
+    });
+}
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Game', key: 'id', sortable: true },
+    { title: 'Matchup', key: 'team_a_name', sortable: true },
+    { title: 'League', key: 'league', sortable: true },
+    { title: 'Schedule', key: 'schedule', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Betting', key: 'betting', sortable: true },
+    { title: 'actions', key: 'actions', sortable: false },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        {
+            key: 'status',
+            resetValue: '',
+            options: [
+                { title: 'Scheduled', value: 'scheduled' },
+                { title: 'Ongoing', value: 'ongoing' },
+                { title: 'Finished', value: 'finished' },
+            ],
+        },
+        'date_range',
+    ],
+    (changes) => {
+        Object.assign(form, changes);
+        filter();
+    },
+    undefined,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...form.data() });
+function openFilters() {
+    Object.assign(draft, form.data());
+    filterOpen.value = true;
+}
+function applyFilters() {
+    Object.assign(form, draft);
+    filter();
 }
 </script>
 <template>
@@ -28,50 +81,35 @@ function filter() {
             Enable Lucky Four from an Ending game's details. The schedule and results are shared.
         </p>
         <v-card>
-            <form class="pa-4" @submit.prevent="filter">
-                <v-row dense>
-                    <v-col cols="12" md="3"
-                        ><v-text-field
-                            v-model="form.search"
-                            label="Search teams or game ID"
-                            hide-details
-                            clearable
-                    /></v-col>
-                    <v-col cols="12" sm="6" md="2"
-                        ><v-select
-                            v-model="form.status"
-                            label="Status"
-                            :items="[
-                                { title: 'All', value: '' },
-                                { title: 'Scheduled', value: 'scheduled' },
-                                { title: 'Ongoing', value: 'ongoing' },
-                                { title: 'Finished', value: 'finished' },
-                            ]"
-                            hide-details
-                    /></v-col>
-                    <v-col cols="6" md="2"
-                        ><v-text-field
-                            v-model="form.date_from"
-                            type="date"
-                            label="From (Manila)"
-                            :error-messages="form.errors.date_from"
-                    /></v-col>
-                    <v-col cols="6" md="2"
-                        ><v-text-field
-                            v-model="form.date_to"
-                            type="date"
-                            label="To (Manila)"
-                            :error-messages="form.errors.date_to"
-                    /></v-col>
-                    <v-col cols="12" md="3" class="d-flex align-start ga-2"
-                        ><v-btn type="submit" color="primary" :loading="form.processing"
-                            >Filter</v-btn
-                        ><v-btn variant="text" @click="router.visit(index())">Reset</v-btn></v-col
-                    >
-                </v-row>
-            </form>
-            <v-table class="ending-table">
-                <thead>
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                filterable
+                @filter="openFilters"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="games.total"
+                v-model="form.search"
+                search-label="Search teams or game ID"
+                :loading="form.processing"
+                :exports="[
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('lucky-four-games.csv', games.data, tableHeaders),
+                    },
+                ]"
+                @search="filter"
+                @refresh="filter"
+            ></AdminTableToolbar>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="games.data"
+                server
+                :toolbar="false"
+                title="Games"
+            >
+                <template #headers>
                     <tr>
                         <th>Game</th>
                         <th>Matchup</th>
@@ -81,9 +119,9 @@ function filter() {
                         <th>Betting</th>
                         <th />
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="game in games.data" :key="game.id">
+                </template>
+                <template #item="{ item: game }"
+                    ><tr :key="game.id">
                         <td>#{{ game.id }}</td>
                         <td>
                             <div class="d-flex align-center ga-2 py-3">
@@ -108,15 +146,45 @@ function filter() {
                                 >View game</v-btn
                             >
                         </td>
-                    </tr>
-                    <tr v-if="!games.data.length">
-                        <td colspan="7" class="text-center pa-6">
-                            No Lucky Four games match these filters.
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No Lucky Four games match these filters. </template>
+            </AdminDataTable>
             <EndingPager :page="games" selectable />
         </v-card>
-    </LuckyFourShell>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="form.processing"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-row dense>
+                <v-col cols="12" sm="6"
+                    ><v-select
+                        v-model="draft.status"
+                        label="Status"
+                        :items="[
+                            { title: 'All', value: '' },
+                            { title: 'Scheduled', value: 'scheduled' },
+                            { title: 'Ongoing', value: 'ongoing' },
+                            { title: 'Finished', value: 'finished' },
+                        ]"
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_from"
+                        type="date"
+                        label="From (Manila)"
+                        :error-messages="form.errors.date_from"
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_to"
+                        type="date"
+                        label="To (Manila)"
+                        :error-messages="form.errors.date_to"
+                /></v-col>
+            </v-row> </AdminFilterDialog
+    ></LuckyFourShell>
 </template>

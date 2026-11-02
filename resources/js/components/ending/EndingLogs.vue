@@ -1,11 +1,14 @@
 ﻿<script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { computed, ref } from 'vue';
 import type { EndingLog, PageResult } from '../../types/ending';
 import { displayDate } from '../../types/ending';
 import EndingPager from './EndingPager.vue';
 import { endingActivity } from './endingActivity';
 
-const props = defineProps<{ logs: PageResult<EndingLog> }>();
+const props = withDefaults(defineProps<{ logs: PageResult<EndingLog>; toolbar?: boolean }>(), {
+    toolbar: true,
+});
 const entries = computed(() => props.logs.data.map(endingActivity));
 const expanded = ref(new Set<number>());
 function toggle(id: number) {
@@ -15,17 +18,19 @@ function toggle(id: number) {
 </script>
 <template>
     <div class="ending-activity">
-        <v-table density="compact" class="ending-activity-table">
-            <thead>
-                <tr>
-                    <th>Time (Philippines)</th>
-                    <th>Administrator</th>
-                    <th>Action</th>
-                    <th>Record</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
-            <tbody>
+        <AdminDataTable
+            :toolbar="toolbar"
+            :items="entries"
+            :headers="[
+                { title: 'Time (Philippines)', key: 'log.created_at' },
+                { title: 'Administrator', key: 'log.actor_name' },
+                { title: 'Action', key: 'log.action' },
+                { title: 'Record', key: 'recordName' },
+                { title: 'Details', key: 'summary' },
+            ]"
+            server
+            title="Activity logs"
+            ><template #body>
                 <template v-for="entry in entries" :key="entry.log.id">
                     <tr>
                         <td class="text-no-wrap">{{ displayDate(entry.log.created_at) }}</td>
@@ -82,9 +87,9 @@ function toggle(id: number) {
                                     <strong>Reason:</strong> {{ entry.log.reason }}
                                 </p>
                                 <v-table
+                                    class="admin-table ending-activity-changes"
                                     v-if="entry.changes.length"
                                     density="compact"
-                                    class="ending-activity-changes"
                                     aria-label="Before and after values"
                                 >
                                     <thead>
@@ -116,7 +121,11 @@ function toggle(id: number) {
                                         These are the quantities and prizes saved when this game was
                                         created.
                                     </p>
-                                    <v-table density="compact" aria-label="Initial card presets">
+                                    <v-table
+                                        class="admin-table"
+                                        density="compact"
+                                        aria-label="Initial card presets"
+                                    >
                                         <thead>
                                             <tr>
                                                 <th>Bet type</th>
@@ -183,8 +192,8 @@ function toggle(id: number) {
                         No activity recorded.
                     </td>
                 </tr>
-            </tbody>
-        </v-table>
+            </template></AdminDataTable
+        >
         <EndingPager :page="logs" />
     </div>
 </template>

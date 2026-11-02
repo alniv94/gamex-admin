@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
+import { computed, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
 import EndingPager from '@/components/ending/EndingPager.vue';
@@ -34,7 +40,7 @@ function filter() {
     router.get(
         SettingsUserController.index.url(),
         { search: search.value, status: status.value, per_page: props.users.per_page },
-        { preserveState: true, preserveScroll: true },
+        { preserveState: true, preserveScroll: true, onSuccess: () => (filterOpen.value = false) },
     );
 }
 function editUser(user: ManagedUser) {
@@ -66,6 +72,43 @@ function roleNames(ids: number[]) {
         .filter((role) => ids.includes(role.id))
         .map((role) => role.name)
         .join(', ');
+}
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Actions', key: 'actions', sortable: false },
+    { title: 'Name', key: 'name', sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Email', key: 'email', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Roles', key: 'roles', sortable: true },
+    { title: 'Permissions', key: 'effective_permissions', sortable: true },
+];
+const tableHeaders2: DataTableHeader[] = [
+    { title: 'Actions', key: 'actions', sortable: false },
+    { title: 'Role', key: 'name', sortable: true },
+    { title: 'Permissions', key: 'permissions', sortable: true },
+    { title: 'Assigned users', key: 'users_count', sortable: true },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['search', { key: 'status', resetValue: '' }],
+    (changes) => {
+        search.value = String(changes.search ?? '');
+        status.value = String(changes.status ?? '');
+        filter();
+    },
+    undefined,
+);
+const filterOpen = ref(false);
+const draft = reactive({ status: '' });
+function openFilters() {
+    draft.status = status.value;
+    filterOpen.value = true;
+}
+function applyFilters() {
+    status.value = draft.status;
+    filter();
 }
 </script>
 
@@ -99,41 +142,35 @@ function roleNames(ids: number[]) {
                 >
                 <v-divider />
                 <template v-if="tab === 'users'">
-                    <form class="d-flex align-center flex-wrap ga-3 pa-4" @submit.prevent="filter">
-                        <v-spacer />
-                        <v-text-field
-                            v-model="search"
-                            label="Search users"
-                            placeholder="Name, mobile or email"
-                            variant="outlined"
-                            density="compact"
-                            hide-details
-                            class="users-search"
-                        />
-                        <v-select
-                            v-model="status"
-                            label="Account status"
-                            :items="[
-                                { title: 'All statuses', value: '' },
-                                { title: 'Active', value: 'Active' },
-                                { title: 'Inactive', value: 'Inactive' },
-                            ]"
-                            variant="outlined"
-                            density="compact"
-                            hide-details
-                            class="users-status"
-                            @update:model-value="filter"
-                        />
-                        <v-btn type="submit" variant="tonal" color="primary">Search</v-btn>
-                        <v-btn
-                            icon="mdi-refresh"
-                            aria-label="Refresh users"
-                            variant="text"
-                            @click="router.reload()"
-                        />
-                    </form>
-                    <v-table class="ending-table" density="compact">
-                        <thead>
+                    <AdminTableToolbar
+                        :filters-open="filterOpen"
+                        filterable
+                        @filter="openFilters"
+                        :active-filters="activeFilters"
+                        @remove-filter="removeFilter"
+                        @reset-filters="resetTableFilters"
+                        :total="users.total"
+                        v-model="search"
+                        search-label="Search users"
+                        refresh-label="Refresh users"
+                        :exports="[
+                            {
+                                title: 'Current page (CSV)',
+                                action: () =>
+                                    exportTableItems('users.csv', users.data, tableHeaders),
+                            },
+                        ]"
+                        @search="filter"
+                        @refresh="router.reload()"
+                    ></AdminTableToolbar>
+                    <AdminDataTable
+                        :headers="tableHeaders"
+                        :items="users.data"
+                        server
+                        :toolbar="false"
+                        title="Users"
+                    >
+                        <template #headers>
                             <tr>
                                 <th>Actions</th>
                                 <th>Name</th>
@@ -143,9 +180,9 @@ function roleNames(ids: number[]) {
                                 <th>Roles</th>
                                 <th>Permissions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="user in users.data" :key="user.id">
+                        </template>
+                        <template #item="{ item: user }"
+                            ><tr :key="user.id">
                                 <td class="text-no-wrap">
                                     <v-btn
                                         :icon="
@@ -204,12 +241,10 @@ function roleNames(ids: number[]) {
                                         {{ user.direct_permissions.length }} direct
                                     </div>
                                 </td>
-                            </tr>
-                            <tr v-if="!users.data.length">
-                                <td colspan="7" class="text-center pa-8">No users found.</td>
-                            </tr>
-                        </tbody>
-                    </v-table>
+                            </tr></template
+                        >
+                        <template #no-data>No users found.</template>
+                    </AdminDataTable>
                     <EndingPager :page="users" selectable />
                 </template>
                 <template v-else>
@@ -225,17 +260,14 @@ function roleNames(ids: number[]) {
                             >Create role</v-btn
                         >
                     </div>
-                    <v-table class="ending-table" density="compact">
-                        <thead>
-                            <tr>
-                                <th>Actions</th>
-                                <th>Role</th>
-                                <th>Permissions</th>
-                                <th>Assigned users</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="role in roles" :key="role.id">
+                    <AdminDataTable
+                        :headers="tableHeaders2"
+                        :items="roles"
+                        :toolbar="true"
+                        title="Roles"
+                    >
+                        <template #item="{ item: role }"
+                            ><tr :key="role.id">
                                 <td>
                                     <v-btn
                                         :icon="
@@ -255,14 +287,12 @@ function roleNames(ids: number[]) {
                                 <td>{{ role.name }}</td>
                                 <td>{{ role.permissions.length }}</td>
                                 <td>{{ role.users_count }}</td>
-                            </tr>
-                            <tr v-if="!roles.length">
-                                <td colspan="4" class="text-center pa-8">
-                                    No roles yet. Existing users retain their direct permissions.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </v-table>
+                            </tr></template
+                        >
+                        <template #no-data>
+                            No roles yet. Existing users retain their direct permissions.
+                        </template>
+                    </AdminDataTable>
                 </template>
             </v-card>
         </div>
@@ -326,6 +356,19 @@ function roleNames(ids: number[]) {
                 >
             </v-card>
         </v-dialog>
+        <AdminFilterDialog v-model="filterOpen" @apply="applyFilters" @reset="resetTableFilters"
+            ><v-select
+                v-model="draft.status"
+                label="Account status"
+                :items="[
+                    { title: 'All statuses', value: '' },
+                    { title: 'Active', value: 'Active' },
+                    { title: 'Inactive', value: 'Inactive' },
+                ]"
+                variant="outlined"
+                density="compact"
+                hide-details
+        /></AdminFilterDialog>
     </div>
 </template>
 

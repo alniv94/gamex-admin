@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { ndrp } from '@/actions/App/Http/Controllers/PlayerController';
 import { onMounted, ref } from 'vue';
 import { useAdminApi } from '../../composables/useAdminApi';
@@ -59,7 +60,8 @@ onMounted(load);
                     >Govt Records: {{ result.data.numberOfGovtRecords || 0 }}</v-chip
                 >
             </div>
-            <v-data-table
+            <AdminDataTable
+                :refresh="load"
                 :headers="headers"
                 :items="result.data.records"
                 :items-per-page="10"
@@ -84,7 +86,7 @@ onMounted(load);
                             alt="NDRP photo" /></v-btn
                     ><span v-else>Unavailable</span></template
                 >
-            </v-data-table>
+            </AdminDataTable>
         </template>
         <div
             v-else

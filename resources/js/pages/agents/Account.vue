@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import {
     assign,
     candidates,
@@ -109,6 +114,24 @@ function filterPlayers() {
 const assignmentError = computed(() => (assignment.errors as Record<string, string>).action);
 const passwordError = computed(() => (password.errors as Record<string, string>).action);
 const removalError = computed(() => (removal.errors as Record<string, string>).action);
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Action', key: 'actions', sortable: false },
+    { title: 'Player', key: 'name', sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Verification', key: 'kyc_status', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Commission', key: 'commission', sortable: true },
+    { title: 'Added at', key: 'created_at', sortable: true },
+];
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => ({ search: props.search }),
+    ['search'],
+    (changes) => {
+        search.value = String(changes.search ?? '');
+        filterPlayers();
+    },
+);
 </script>
 
 <template>
@@ -166,39 +189,43 @@ const removalError = computed(() => (removal.errors as Record<string, string>).a
             </v-row>
         </v-card>
         <v-card>
-            <div class="d-flex flex-wrap align-center ga-3 pa-4">
-                <div>
-                    <h2 class="text-subtitle-1">Agent players</h2>
-                    <span class="text-caption"
-                        >{{ Number(account.player_count).toLocaleString() }} players ·
-                        {{ Number(account.verified_count).toLocaleString() }} verified</span
-                    >
-                </div>
-                <v-btn
-                    color="primary"
-                    prepend-icon="mdi-account-plus-outline"
-                    :disabled="!ready"
-                    @click="assigning = true"
-                    >Add player</v-btn
+            <AdminTableToolbar
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="players.total"
+                v-model="search"
+                title="Agent players"
+                search-label="Search players"
+                refresh-label="Refresh players"
+                :exports="[
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('agents-account.csv', players.data, tableHeaders),
+                    },
+                ]"
+                @refresh="filterPlayers"
+                @search="filterPlayers"
+            >
+                <template #actions
+                    ><v-btn
+                        color="primary"
+                        prepend-icon="mdi-account-plus-outline"
+                        :disabled="!ready"
+                        @click="assigning = true"
+                        >Add player</v-btn
+                    ></template
                 >
-                <v-spacer />
-                <form class="d-flex ga-2" @submit.prevent="filterPlayers">
-                    <v-text-field
-                        v-model="search"
-                        label="Search players"
-                        hide-details
-                        density="compact"
-                        clearable
-                    /><v-btn
-                        type="submit"
-                        icon="mdi-magnify"
-                        variant="text"
-                        aria-label="Search assigned players"
-                    />
-                </form>
-            </div>
-            <v-table class="ending-table" density="compact">
-                <thead>
+            </AdminTableToolbar>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="players.data"
+                server
+                :toolbar="false"
+                title="Assigned players"
+            >
+                <template #headers>
                     <tr>
                         <th>Action</th>
                         <th>Player</th>
@@ -208,9 +235,9 @@ const removalError = computed(() => (removal.errors as Record<string, string>).a
                         <th>Commission</th>
                         <th>Added at</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="player in players.data" :key="player.id">
+                </template>
+                <template #item="{ item: player }"
+                    ><tr :key="player.id">
                         <td>
                             <v-btn
                                 icon="mdi-account-remove-outline"
@@ -240,12 +267,10 @@ const removalError = computed(() => (removal.errors as Record<string, string>).a
                         <td>{{ player.status || '—' }}</td>
                         <td>{{ playerMoney(player.commission) }}%</td>
                         <td class="text-no-wrap">{{ playerDate(player.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!players.data.length">
-                        <td colspan="7" class="text-center pa-8">No players match your filters.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No players match your filters.</template>
+            </AdminDataTable>
             <EndingPager :page="players" selectable />
         </v-card>
         <AgentForm v-model="editor" :account="account" :outlets="outlets" />

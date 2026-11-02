@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { reactive, ref, watch, onBeforeUnmount } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { index, show } from '@/actions/App/Http/Controllers/OtsoPanaloController';
@@ -6,6 +9,7 @@ import { usePermissions } from '@/composables/usePermissions';
 import OtsoShell from '@/components/otso/OtsoShell.vue';
 import GameForm from '@/components/otso/GameForm.vue';
 import EndingToolbar from '@/components/ending/EndingToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
 import EndingPager from '@/components/ending/EndingPager.vue';
 import { money } from '@/types/ending';
 import { displayOtsoDate as displayDate } from '@/types/otso';
@@ -60,6 +64,7 @@ function filter() {
         {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => (filterOpen.value = false),
             replace: true,
         },
     );
@@ -74,22 +79,81 @@ function search() {
     timer = setTimeout(filter, 300);
 }
 onBeforeUnmount(() => clearTimeout(timer));
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        {
+            key: 'status',
+            resetValue: '',
+            options: [
+                { title: 'Not yet started', value: 1 },
+                { title: 'Started', value: 2 },
+                { title: 'Finished', value: 3 },
+                { title: 'Cancelled', value: 4 },
+            ],
+        },
+        'date_range',
+    ],
+    (changes) => {
+        Object.assign(filters, changes);
+        filter();
+    },
+    undefined,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...filters });
+function openFilters() {
+    Object.assign(draft, filters);
+    filterOpen.value = true;
+}
+function applyFilters() {
+    Object.assign(filters, draft);
+    filter();
+}
 </script>
 
 <template>
     <OtsoShell title="Games" :migration-ready="migrationReady">
         <v-card class="otso-games-card">
             <EndingToolbar
+                :filters-open="filterOpen"
+                filterable
+                @filter="openFilters"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="games.total"
                 v-model="filters.search"
+                exportable
+                @export="
+                    exportTableItems(
+                        'otso-games.csv',
+                        games.data,
+                        columns.map((column) => ({ key: column.key, title: column.label })),
+                    )
+                "
                 :create-label="can('Create Otso Panalo') ? 'Create Game' : undefined"
                 :disabled="!migrationReady"
                 @create="create = true"
                 @refresh="filter"
                 @search="search"
-            />
+            >
+            </EndingToolbar>
             <v-divider />
-            <v-table class="ending-table otso-games-table" density="compact">
-                <thead>
+            <AdminDataTable
+                :headers="[
+                    { title: 'Action', key: 'actions', sortable: false },
+                    ...columns.map((column) => ({ key: column.key, title: column.label })),
+                    { title: 'Game', key: 'team_a_name' },
+                ]"
+                :items="games.data"
+                server
+                :toolbar="false"
+                title="Games"
+            >
+                <template #headers>
                     <tr>
                         <th class="text-center">Action</th>
                         <template v-for="column in columns" :key="column.key">
@@ -128,9 +192,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             <th v-if="column.key === 'id'">Game</th>
                         </template>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="game in games.data" :key="game.id">
+                </template>
+                <template #item="{ item: game }"
+                    ><tr :key="game.id">
                         <td class="text-center otso-action-cell">
                             <v-btn
                                 :href="show.url(game.id)"
@@ -184,12 +248,10 @@ onBeforeUnmount(() => clearTimeout(timer));
                         <td>PHP {{ money(game.bet_amount) }}</td>
                         <td>PHP {{ money(game.jackpot_prize) }}</td>
                         <td>{{ displayDate(game.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!games.data.length">
-                        <td colspan="10" class="text-center pa-6">No games found.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No games found.</template>
+            </AdminDataTable>
             <EndingPager
                 :page="games"
                 :page-sizes="[10, 25, 50, 100]"
@@ -206,7 +268,39 @@ onBeforeUnmount(() => clearTimeout(timer));
                 @saved="create = false"
             />
         </v-dialog>
-    </OtsoShell>
+        <AdminFilterDialog v-model="filterOpen" @apply="applyFilters" @reset="resetTableFilters">
+            <v-row dense>
+                <v-col cols="12" sm="6">
+                    <v-select
+                        v-model="draft.status"
+                        label="Status"
+                        :items="[
+                            { title: 'All statuses', value: '' },
+                            { title: 'Not yet started', value: '1' },
+                            { title: 'Started', value: '2' },
+                            { title: 'Finished', value: '3' },
+                            { title: 'Cancelled', value: '4' },
+                        ]"
+                        hide-details
+                    />
+                </v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_from"
+                        type="date"
+                        label="Date from"
+                        hide-details
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_to"
+                        type="date"
+                        label="Date to"
+                        :min="draft.date_from || undefined"
+                        hide-details
+                /></v-col>
+            </v-row> </AdminFilterDialog
+    ></OtsoShell>
 </template>
 
 <style scoped>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { index, settle, specialAction } from '@/actions/App/Http/Controllers/InvestorController';
 import EndingPager from '@/components/ending/EndingPager.vue';
 import InvestorShell from '@/components/investors/InvestorShell.vue';
@@ -76,6 +78,17 @@ function submit() {
 function printReceipt() {
     window.print();
 }
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Item', key: 'id', sortable: true },
+    { title: 'Ledger', key: 'ledger', sortable: true },
+    { title: 'Agent ID', key: 'investor_id', sortable: true },
+    { title: 'Player ID', key: 'player_id', sortable: true },
+    { title: 'Bet ID', key: 'bet_id', sortable: true },
+    { title: 'Commission %', key: 'commission_percent', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Date', key: 'created_at', sortable: true },
+];
 </script>
 
 <template>
@@ -134,8 +147,14 @@ function printReceipt() {
             </v-card-text>
         </v-card>
         <v-card>
-            <v-table class="players-table">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="items.data"
+                server
+                :toolbar="true"
+                title="Settlement items"
+            >
+                <template #headers>
                     <tr>
                         <th>Item</th>
                         <th>Ledger</th>
@@ -146,9 +165,9 @@ function printReceipt() {
                         <th>Amount</th>
                         <th>Date</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="item in items.data" :key="(item.ledger || '') + item.id">
+                </template>
+                <template #item="{ item: item }"
+                    ><tr :key="(item.ledger || '') + item.id">
                         <td>{{ item.id }}</td>
                         <td>{{ item.ledger || 'Base' }}</td>
                         <td>{{ item.investor_id }}</td>
@@ -161,14 +180,10 @@ function printReceipt() {
                         <td v-if="kind !== 'payouts'">{{ item.commission_percent }}%</td>
                         <td>{{ investorMoney(item.amount ?? item.commission_amount) }}</td>
                         <td>{{ playerDate(item.created_at ?? item.bet_created_at) }}</td>
-                    </tr>
-                    <tr v-if="!items.data.length">
-                        <td colspan="8" class="pa-8 text-center">
-                            No unsettled items in this date range.
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No unsettled items in this date range. </template>
+            </AdminDataTable>
             <EndingPager :page="items" />
         </v-card>
         <v-dialog v-model="confirmOpen" max-width="560" persistent>

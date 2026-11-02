@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { computed, reactive, ref, watch, onBeforeUnmount } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import {
@@ -63,11 +68,6 @@ const gameOptions = computed(() =>
         value: game.id,
     })),
 );
-const selectedGameLabel = computed(
-    () =>
-        gameOptions.value.find((game) => game.value === filters.game_id)?.title ||
-        '#' + filters.game_id,
-);
 const headers: { key: string; label: string; sortable?: boolean; align?: 'end' }[] = [
     { key: 'id', label: 'ID', sortable: true },
     { key: 'username', label: 'Player Username' },
@@ -129,6 +129,7 @@ function resetFilters() {
         date_to: '',
     });
     filterErrors.value = {};
+    loadBets({ ...filters, ...draftFilters, search: '' }, true);
 }
 function applyFilters() {
     loadBets({ ...filters, ...draftFilters }, true);
@@ -141,137 +142,82 @@ function sort(column: string) {
     });
 }
 onBeforeUnmount(() => clearTimeout(timer));
+const exportHeaders = [
+    { title: 'ID', key: 'id' },
+    { title: 'Player', key: 'username', value: (bet: OtsoBet) => bet.username || bet.player_name },
+    { title: 'Ending game', key: 'ending_game_id' },
+    { title: 'League', key: 'league' },
+    { title: 'Team A', key: 'team_a_name' },
+    { title: 'Team B', key: 'team_b_name' },
+    { title: 'Bet type', key: 'bet_type' },
+    { title: 'Ticket', key: 'name' },
+    ...quarters.map((quarter) => ({ title: quarter.label, key: quarter.combination })),
+    { title: 'Amount', key: 'amount' },
+    { title: 'Prize', key: 'prize_amount' },
+    { title: 'Refunded', key: 'refunded' },
+    { title: 'Bet at', key: 'created_at' },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['search', { key: 'game_id', options: gameOptions.value }, 'filter_by', 'date_range'],
+    (changes) => {
+        Object.assign(filters, changes);
+        loadBets(filters, true);
+    },
+    resetFilters,
+);
 </script>
 
 <template>
     <OtsoShell title="Bets" :migration-ready="migrationReady">
         <v-card class="otso-bets-card">
-            <div class="d-flex align-center flex-wrap ga-2 px-4 py-3">
-                <div class="d-flex align-center ga-1">
-                    <v-btn
-                        icon="mdi-sync"
-                        variant="text"
-                        color="secondary"
-                        size="small"
-                        height="32"
-                        width="32"
-                        aria-label="Refresh bets"
-                        title="Refresh"
-                        :loading="loading"
-                        @click="loadBets()"
-                    />
-                    <v-btn
-                        :href="exportBets.url({ query: filters })"
-                        icon="mdi-file-delimited-outline"
-                        variant="text"
-                        color="secondary"
-                        size="small"
-                        height="32"
-                        width="32"
-                        aria-label="Export CSV"
-                        title="Export CSV"
-                    />
-                    <v-btn
-                        color="primary"
-                        variant="outlined"
-                        prepend-icon="mdi-filter-variant"
-                        height="34"
-                        class="ml-2"
-                        :disabled="loading"
-                        @click="openFilters"
-                        >Filters</v-btn
-                    >
-                </div>
-                <v-spacer />
-                <v-chip
-                    color="primary"
-                    variant="outlined"
-                    size="small"
-                    rounded="pill"
-                    aria-live="polite"
-                    >Total: {{ bets.total.toLocaleString() }}</v-chip
-                >
-            </div>
-            <v-divider />
-            <div class="px-4 pt-4 pb-0">
-                <v-row gap="12" class="align-center">
-                    <v-col cols="12" md="6">
-                        <v-text-field
-                            v-model="filters.search"
-                            placeholder="Search username, ticket, combination, or game"
-                            aria-label="Search bets"
-                            prepend-inner-icon="mdi-magnify"
-                            variant="outlined"
-                            density="compact"
-                            hide-details
-                            clearable
-                            class="otso-bets-search"
-                            @update:model-value="search"
-                            @keydown.enter.prevent="loadBets()"
-                        />
-                    </v-col>
-                    <v-col
-                        v-if="
-                            filters.game_id ||
-                            filters.date_from ||
-                            filters.date_to ||
-                            filters.search
-                        "
-                        cols="12"
-                        md="6"
-                    >
-                        <div class="d-flex flex-wrap justify-md-end align-center ga-2">
-                            <v-chip
-                                v-if="filters.date_from"
-                                color="primary"
-                                variant="outlined"
-                                size="small"
-                                >{{ filters.filter_by }} From: {{ filters.date_from }}</v-chip
-                            >
-                            <v-chip
-                                v-if="filters.date_to"
-                                color="primary"
-                                variant="outlined"
-                                size="small"
-                                >{{ filters.filter_by }} To: {{ filters.date_to }}</v-chip
-                            >
-                            <v-chip
-                                v-if="filters.game_id"
-                                color="primary"
-                                variant="outlined"
-                                size="small"
-                                ><span class="text-truncate"
-                                    >Game: {{ selectedGameLabel }}</span
-                                ></v-chip
-                            >
-                            <v-chip
-                                v-if="filters.search"
-                                color="primary"
-                                variant="outlined"
-                                size="small"
-                                ><span class="text-truncate"
-                                    >Search: {{ filters.search }}</span
-                                ></v-chip
-                            >
-                            <v-btn
-                                v-if="filters.game_id && can('Ending Game PDF Generation')"
-                                :href="pdf.url(filters.game_id)"
-                                prepend-icon="mdi-file-pdf-box"
-                                variant="text"
-                                color="primary"
-                                size="small"
-                                >Generate Game Bets PDF</v-btn
-                            >
-                        </div>
-                    </v-col>
-                </v-row>
-            </div>
-            <v-table
-                class="ending-table otso-bets-table"
-                density="compact"
-                aria-label="Bet records"
+            <AdminTableToolbar
+                :filters-open="filterDialog"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="bets.total"
+                v-model="filters.search"
+                search-label="Search bets"
+                refresh-label="Refresh bets"
+                :exports="[
+                    { title: 'All matching bets (CSV)', href: exportBets.url({ query: filters }) },
+                    {
+                        title: 'Current page (CSV)',
+                        action: () => exportTableItems('otso-bets.csv', bets.data, exportHeaders),
+                    },
+                ]"
+                @refresh="loadBets()"
+                @search="search"
+                :loading="loading"
+                filterable
+                @filter="openFilters"
+                filter-label="Filters"
             >
-                <thead>
+                <template #actions
+                    ><v-btn
+                        v-if="filters.game_id && can('Ending Game PDF Generation')"
+                        :href="pdf.url(filters.game_id)"
+                        prepend-icon="mdi-file-pdf-box"
+                        variant="text"
+                        color="primary"
+                        size="small"
+                        >Generate Game Bets PDF</v-btn
+                    ></template
+                ></AdminTableToolbar
+            >
+            <v-divider />
+
+            <AdminDataTable
+                aria-label="Bet records"
+                :headers="headers.map((header) => ({ ...header, title: header.label }))"
+                :items="bets.data"
+                server
+                :toolbar="false"
+                title="Bets"
+            >
+                <template #headers>
                     <tr>
                         <th
                             v-for="header in headers"
@@ -313,9 +259,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             <template v-else>{{ header.label }}</template>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="bet in bets.data" :key="bet.id">
+                </template>
+                <template #item="{ item: bet }"
+                    ><tr :key="bet.id">
                         <td>
                             <v-btn
                                 variant="text"
@@ -390,14 +336,10 @@ onBeforeUnmount(() => clearTimeout(timer));
                             >
                         </td>
                         <td>{{ displayDate(bet.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!bets.data.length">
-                        <td colspan="10" class="text-center text-grey pa-6">
-                            No bets found for the selected filters.
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No bets found for the selected filters. </template>
+            </AdminDataTable>
             <EndingPager
                 :page="bets"
                 selectable
@@ -405,65 +347,54 @@ onBeforeUnmount(() => clearTimeout(timer));
                 class="border-t"
             />
         </v-card>
-        <v-dialog v-model="filterDialog" max-width="960" persistent>
-            <v-card class="ending-dialog">
-                <v-card-title class="font-weight-medium">Filter Bets</v-card-title>
-                <v-divider />
-                <v-form @submit.prevent="applyFilters">
-                    <v-card-text class="py-5">
-                        <v-row gap="16">
-                            <v-col cols="12" sm="6"
-                                ><v-select
-                                    v-model="draftFilters.filter_by"
-                                    :items="['Bet Date', 'Game Schedule']"
-                                    label="Filter By"
-                                    variant="outlined"
-                                    density="compact"
-                                    :error-messages="filterErrors.filter_by"
-                                    hide-details="auto"
-                            /></v-col>
-                            <v-col cols="12" sm="6"
-                                ><v-autocomplete
-                                    v-model="draftFilters.game_id"
-                                    :items="gameOptions"
-                                    label="Ending Game"
-                                    variant="outlined"
-                                    density="compact"
-                                    clearable
-                                    :error-messages="filterErrors.game_id"
-                                    hide-details="auto"
-                            /></v-col>
-                            <v-col cols="12" sm="6"
-                                ><v-text-field
-                                    v-model="draftFilters.date_from"
-                                    type="date"
-                                    :label="draftFilters.filter_by + ' From'"
-                                    :error-messages="filterErrors.date_from"
-                                    hide-details="auto"
-                                    clearable
-                            /></v-col>
-                            <v-col cols="12" sm="6"
-                                ><v-text-field
-                                    v-model="draftFilters.date_to"
-                                    type="date"
-                                    :label="draftFilters.filter_by + ' To (Optional)'"
-                                    :error-messages="filterErrors.date_to"
-                                    hide-details="auto"
-                                    clearable
-                            /></v-col>
-                        </v-row>
-                    </v-card-text>
-                    <v-divider />
-                    <v-card-actions class="d-flex flex-wrap justify-end ga-2 px-4 py-3">
-                        <v-btn :disabled="loading" @click="filterDialog = false">Cancel</v-btn>
-                        <v-btn :disabled="loading" @click="resetFilters">Reset</v-btn>
-                        <v-btn type="submit" color="primary" :loading="loading"
-                            >Apply Filters</v-btn
-                        >
-                    </v-card-actions>
-                </v-form>
-            </v-card>
-        </v-dialog>
+        <AdminFilterDialog
+            v-model="filterDialog"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-row gap="16">
+                <v-col cols="12" sm="6"
+                    ><v-select
+                        v-model="draftFilters.filter_by"
+                        :items="['Bet Date', 'Game Schedule']"
+                        label="Filter By"
+                        variant="outlined"
+                        density="compact"
+                        :error-messages="filterErrors.filter_by"
+                        hide-details="auto"
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-autocomplete
+                        v-model="draftFilters.game_id"
+                        :items="gameOptions"
+                        label="Ending Game"
+                        variant="outlined"
+                        density="compact"
+                        clearable
+                        :error-messages="filterErrors.game_id"
+                        hide-details="auto"
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draftFilters.date_from"
+                        type="date"
+                        :label="draftFilters.filter_by + ' From'"
+                        :error-messages="filterErrors.date_from"
+                        hide-details="auto"
+                        clearable
+                /></v-col>
+                <v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draftFilters.date_to"
+                        type="date"
+                        :label="draftFilters.filter_by + ' To (Optional)'"
+                        :error-messages="filterErrors.date_to"
+                        hide-details="auto"
+                        clearable
+                /></v-col>
+            </v-row>
+        </AdminFilterDialog>
         <v-dialog :model-value="!!selected" max-width="600" @update:model-value="selected = null"
             ><v-card v-if="selected"
                 ><v-card-title>Bet #{{ selected.id }}</v-card-title

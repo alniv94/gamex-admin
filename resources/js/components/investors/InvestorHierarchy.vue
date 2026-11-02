@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { hierarchy, show } from '@/actions/App/Http/Controllers/InvestorController';
 import type { InvestorRow } from '@/types/investors';
 import { investorMoney, investorName } from '@/types/investors';
@@ -69,7 +70,8 @@ onBeforeUnmount(() => http.cancel());
             <v-alert v-if="loadError" type="error" variant="tonal" class="mb-4"
                 >{{ loadError }}<v-btn variant="text" @click="load">Retry</v-btn></v-alert
             >
-            <v-data-table
+            <AdminDataTable
+                :refresh="load"
                 :headers="headers"
                 :items="rows"
                 :loading="http.processing"
@@ -90,7 +92,7 @@ onBeforeUnmount(() => http.cancel());
                     >{{ Number(item.sub_commission ?? 0).toFixed(2) }}%</template
                 >
                 <template #item.wallet="{ item }">{{ investorMoney(item.wallet) }}</template>
-            </v-data-table>
+            </AdminDataTable>
         </v-card-text>
     </v-card>
 </template>

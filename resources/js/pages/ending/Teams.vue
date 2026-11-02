@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
@@ -40,12 +43,34 @@ function exportRows() {
         ]),
     ]);
 }
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Action', key: 'actions', sortable: false },
+    { title: 'League', key: 'league.league', sortable: true },
+    { title: 'Logo', key: 'logo', sortable: false },
+    { title: 'Name', key: 'team_name', sortable: true },
+    { title: 'Alias', key: 'team_alias', sortable: true },
+    { title: 'Status', key: 'is_active', sortable: true },
+    { title: 'Created at', key: 'created_at', sortable: true },
+];
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    ['search'],
+    (changes) => {
+        search.value = String(changes.search ?? '');
+        filter();
+    },
+);
 </script>
 
 <template>
     <EndingShell title="Teams" :migration-ready="migrationReady">
         <v-card>
             <EndingToolbar
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="records.total"
                 v-model="search"
                 create-label="Create Team"
                 :disabled="!migrationReady"
@@ -56,8 +81,14 @@ function exportRows() {
                 @export="exportRows"
             />
             <v-divider />
-            <v-table class="ending-table" density="compact"
-                ><thead>
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="records.data"
+                server
+                :toolbar="false"
+                title="Teams"
+            >
+                <template #headers>
                     <tr>
                         <th class="text-center">Action</th>
                         <th>League</th>
@@ -67,9 +98,9 @@ function exportRows() {
                         <th>Status</th>
                         <th>Created at <v-icon icon="mdi-arrow-down" size="12" /></th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="team in records.data" :key="team.id">
+                </template>
+                <template #item="{ item: team }"
+                    ><tr :key="team.id">
                         <td class="text-center">
                             <v-btn
                                 icon="mdi-square-edit-outline"
@@ -93,12 +124,10 @@ function exportRows() {
                             >
                         </td>
                         <td class="text-no-wrap">{{ displayDate(team.created_at || null) }}</td>
-                    </tr>
-                    <tr v-if="!records.data.length">
-                        <td colspan="7" class="text-center pa-8">No teams found.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No teams found.</template>
+            </AdminDataTable>
             <EndingPager :page="records" selectable />
         </v-card>
         <CatalogForm v-model="dialog" kind="team" :team="selected" :leagues="leagues" />

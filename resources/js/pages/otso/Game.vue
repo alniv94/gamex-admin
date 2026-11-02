@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { computed, ref, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import {
@@ -262,6 +264,34 @@ function confirm() {
         onSuccess: () => (pending.value = null),
     });
 }
+
+const tableHeaders5: DataTableHeader<OtsoWinner>[] = [
+    { title: 'Ticket', key: 'bet_id', sortable: true },
+    { title: 'Player', key: 'username', sortable: true },
+    { title: 'Winner Type', key: 'winner_type', sortable: true },
+    {
+        title: 'Combinations',
+        key: 'combinations',
+        value: (winner) =>
+            quarters.map((quarter) => winner[quarter.combination] || '?').join(' / '),
+        sortable: true,
+    },
+    { title: 'Prize Amount', key: 'prize_amount', sortable: true },
+    { title: 'Status', key: 'winner_status', sortable: true },
+    { title: 'Prize Released', key: 'prize_released', sortable: true },
+    { title: 'actions', key: 'actions', sortable: false },
+];
+const tableHeaders6: DataTableHeader[] = [
+    { title: 'Action', key: 'action', sortable: true },
+    { title: 'Administrator', key: 'actor', sortable: true },
+    { title: 'Date', key: 'created_at', sortable: true },
+];
+const tableHeaders7: DataTableHeader[] = [
+    { title: 'Action', key: 'action', sortable: true },
+    { title: 'Details', key: 'details', sortable: true },
+    { title: 'Administrator', key: 'actor', sortable: true },
+    { title: 'Date', key: 'created_at', sortable: true },
+];
 </script>
 <template>
     <OtsoShell title="Game Details" :migration-ready="migrationReady">
@@ -327,7 +357,11 @@ function confirm() {
                     >
                         Game Details
                     </h3>
-                    <v-table class="otso-details-table" density="compact" aria-label="Game details">
+                    <v-table
+                        class="admin-table otso-details-table"
+                        density="compact"
+                        aria-label="Game details"
+                    >
                         <tbody>
                             <tr>
                                 <th scope="row">Game ID</th>
@@ -421,7 +455,7 @@ function confirm() {
                         Prize Configuration
                     </h3>
                     <v-table
-                        class="otso-details-table"
+                        class="admin-table otso-details-table"
                         density="compact"
                         aria-label="Prize configuration"
                     >
@@ -446,7 +480,7 @@ function confirm() {
                             PDF Generation
                         </h3>
                         <v-table
-                            class="otso-details-table"
+                            class="admin-table otso-details-table"
                             density="compact"
                             aria-label="PDF generation"
                         >
@@ -479,7 +513,7 @@ function confirm() {
                             Bets
                         </h3>
                         <v-table
-                            class="otso-details-table"
+                            class="admin-table otso-details-table"
                             density="compact"
                             aria-label="Bets summary"
                             ><tbody>
@@ -963,8 +997,14 @@ function confirm() {
                             class="mb-4"
                             >Approve the game result before generating winners.</v-alert
                         >
-                        <v-table class="ending-table"
-                            ><thead>
+                        <AdminDataTable
+                            :headers="tableHeaders5"
+                            :items="winners.data"
+                            server
+                            :toolbar="true"
+                            title="Winners"
+                        >
+                            <template #headers>
                                 <tr>
                                     <th>Ticket</th>
                                     <th>Player</th>
@@ -975,9 +1015,9 @@ function confirm() {
                                     <th>Prize Released</th>
                                     <th />
                                 </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="winner in winners.data" :key="winner.id">
+                            </template>
+                            <template #item="{ item: winner }"
+                                ><tr :key="winner.id">
                                     <td>#{{ winner.bet_id }} {{ winner.ticket_name }}</td>
                                     <td>
                                         {{
@@ -1019,57 +1059,50 @@ function confirm() {
                                             >Approve</v-btn
                                         >
                                     </td>
-                                </tr>
-                                <tr v-if="!winners.data.length">
-                                    <td colspan="8" class="text-center pa-6">
-                                        {{
-                                            game.winners_generated_at
-                                                ? 'No winners matched the approved result.'
-                                                : 'Winners have not been generated.'
-                                        }}
-                                    </td>
-                                </tr>
-                            </tbody></v-table
+                                </tr></template
+                            >
+                            <template #no-data>
+                                {{
+                                    game.winners_generated_at
+                                        ? 'No winners matched the approved result.'
+                                        : 'Winners have not been generated.'
+                                }}
+                            </template> </AdminDataTable
                         ><EndingPager :page="winners" /></div
                 ></v-tabs-window-item>
                 <v-tabs-window-item value="activity"
                     ><div class="pa-4">
                         <h2 class="mb-3">Activity History</h2>
-                        <v-table class="ending-table"
-                            ><thead>
-                                <tr>
-                                    <th>Action</th>
-                                    <th>Administrator</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="audit in audits" :key="audit.id">
+                        <AdminDataTable
+                            :headers="tableHeaders6"
+                            :items="audits"
+                            :toolbar="true"
+                            title="Activity"
+                        >
+                            <template #item="{ item: audit }"
+                                ><tr :key="audit.id">
                                     <td>{{ audit.action.replaceAll('_', ' ') }}</td>
                                     <td>{{ audit.actor || 'Unavailable' }}</td>
                                     <td>{{ displayDate(audit.created_at) }}</td>
-                                </tr>
-                            </tbody></v-table
-                        >
+                                </tr></template
+                            >
+                        </AdminDataTable>
                         <h3 class="mt-4 mb-3">Legacy Activity</h3>
-                        <v-table class="ending-table"
-                            ><thead>
-                                <tr>
-                                    <th>Action</th>
-                                    <th>Details</th>
-                                    <th>Administrator</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="log in legacyLogs" :key="log.id">
+                        <AdminDataTable
+                            :headers="tableHeaders7"
+                            :items="legacyLogs"
+                            :toolbar="true"
+                            title="Historical activity"
+                        >
+                            <template #item="{ item: log }"
+                                ><tr :key="log.id">
                                     <td>{{ log.action.replaceAll('_', ' ') }}</td>
                                     <td>{{ log.details }}</td>
                                     <td>{{ log.actor || 'Historical administrator' }}</td>
                                     <td>{{ displayDate(log.created_at) }}</td>
-                                </tr>
-                            </tbody></v-table
-                        >
+                                </tr></template
+                            >
+                        </AdminDataTable>
                     </div></v-tabs-window-item
                 >
             </v-tabs-window>

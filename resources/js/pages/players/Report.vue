@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { show } from '@/actions/App/Http/Controllers/PlayerController';
 import {
     index,
@@ -101,6 +105,7 @@ function visit(targetPage = 1) {
             replace: true,
             onStart: () => (loading.value = true),
             onFinish: () => (loading.value = false),
+            onSuccess: () => (filterOpen.value = false),
         },
     );
 }
@@ -154,6 +159,36 @@ function money(value: string | number | null) {
     return Number(value ?? 0).toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
 }
 onBeforeUnmount(() => clearTimeout(timer));
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        ...(props.report === 'active' ? [] : ['status', 'account_verified']),
+        { key: 'date_range', removable: props.report === 'registered' },
+    ],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    reset,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...form });
+const draftPeriod = ref('Custom');
+function openFilters() {
+    Object.assign(draft, form);
+    draftPeriod.value = period.value;
+    filterOpen.value = true;
+}
+function changeDraftPeriod(value: string) {
+    draftPeriod.value = value;
+    if (value !== 'Custom') [draft.date_from, draft.date_to] = datesFor(value);
+}
+function applyFilters() {
+    Object.assign(form, draft);
+    visit();
+}
 </script>
 
 <template>
@@ -177,97 +212,27 @@ onBeforeUnmount(() => clearTimeout(timer));
             Lucky Four history has not been verified yet. Betting totals may be incomplete.
         </v-alert>
         <v-card>
-            <div class="players-toolbar flex-wrap">
-                <div class="d-flex align-center ga-2">
-                    <v-btn
-                        icon="mdi-sync"
-                        variant="text"
-                        color="secondary"
-                        aria-label="Refresh report"
-                        :loading="loading"
-                        @click="visit(players.current_page)"
-                    />
-                    <v-menu>
-                        <template #activator="{ props: menuProps }">
-                            <v-btn
-                                v-bind="menuProps"
-                                prepend-icon="mdi-file-delimited-outline"
-                                variant="text"
-                                :disabled="loading"
-                                >Export CSV</v-btn
-                            >
-                        </template>
-                        <v-list>
-                            <v-list-item title="Export current page" :href="exportUrl('page')" />
-                            <v-list-item
-                                title="Export all matching players"
-                                :href="exportUrl('all')"
-                            />
-                        </v-list>
-                    </v-menu>
-                    <v-chip size="small" variant="tonal"
-                        >{{ players.total.toLocaleString() }} players</v-chip
-                    >
-                </div>
-                <div class="players-search-controls">
-                    <v-text-field
-                        v-model="form.search"
-                        :placeholder="
-                            report === 'active'
-                                ? 'Search name, mobile, city'
-                                : 'Search name, mobile, email'
-                        "
-                        aria-label="Search players"
-                        hide-details
-                        clearable
-                        maxlength="100"
-                        @update:model-value="search"
-                        @keyup.enter="visit()"
-                    />
-                </div>
-            </div>
-            <form class="player-report-filters" @submit.prevent="visit()">
-                <v-select
-                    :model-value="period"
-                    :items="periods"
-                    label="Period"
-                    hide-details
-                    @update:model-value="changePeriod"
-                />
-                <v-text-field
-                    v-model="form.date_from"
-                    label="Date From"
-                    type="date"
-                    :required="report !== 'registered'"
-                    hide-details
-                />
-                <v-text-field
-                    v-model="form.date_to"
-                    label="Date To"
-                    type="date"
-                    :min="form.date_from || undefined"
-                    :required="report !== 'registered'"
-                    hide-details
-                />
-                <template v-if="report !== 'active'">
-                    <v-select
-                        v-model="form.account_verified"
-                        :items="['All', 'Verified', 'Pending', 'Files Submitted', 'Rejected']"
-                        label="Verification Status"
-                        hide-details
-                    />
-                    <v-select
-                        v-model="form.status"
-                        :items="['All', 'Active', 'Inactive']"
-                        label="Account Status"
-                        hide-details
-                    />
-                </template>
-                <div class="d-flex ga-2 align-center">
-                    <v-btn type="submit" color="primary" :loading="loading">Apply</v-btn>
-                    <v-btn variant="text" :disabled="loading" @click="reset">Reset</v-btn>
-                </div>
-            </form>
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                filterable
+                @filter="openFilters"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="players.total"
+                v-model="form.search"
+                search-label="Search players"
+                refresh-label="Refresh players"
+                :exports="[
+                    { title: 'Export current page', href: exportUrl('page') },
+                    { title: 'Export all matching players', href: exportUrl('all') },
+                ]"
+                @refresh="visit(players.current_page)"
+                @search="search"
+                :loading="loading"
+            >
+            </AdminTableToolbar>
+
             <v-alert
                 v-if="Object.keys(page.props.errors).length"
                 type="error"
@@ -277,8 +242,15 @@ onBeforeUnmount(() => clearTimeout(timer));
             >
             <v-progress-linear v-if="loading" indeterminate color="primary" height="2" />
             <v-divider />
-            <v-table class="players-table" :aria-busy="loading">
-                <thead>
+            <AdminDataTable
+                :aria-busy="loading"
+                :headers="[{ title: 'Details', key: 'actions', sortable: false }, ...columns]"
+                :items="players.data"
+                server
+                :toolbar="false"
+                title="Player report"
+            >
+                <template #headers>
                     <tr>
                         <th>Details</th>
                         <th
@@ -307,9 +279,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             </button>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="player in players.data" :key="player.id">
+                </template>
+                <template #item="{ item: player }"
+                    ><tr :key="player.id">
                         <td>
                             <v-btn
                                 :href="show.url(player.id)"
@@ -348,20 +320,55 @@ onBeforeUnmount(() => clearTimeout(timer));
                             }}</template>
                             <template v-else>{{ player[column.key] ?? '-' }}</template>
                         </td>
-                    </tr>
-                    <tr v-if="!players.data.length">
-                        <td
-                            :colspan="columns.length + 1"
-                            class="text-center text-medium-emphasis py-8"
-                        >
-                            No players found for these filters.
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No players found for these filters. </template>
+            </AdminDataTable>
             <EndingPager :page="players" selectable />
         </v-card>
-    </PlayerShell>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-select
+                :model-value="draftPeriod"
+                :items="periods"
+                label="Period"
+                hide-details
+                @update:model-value="changeDraftPeriod"
+            />
+            <v-text-field
+                v-model="draft.date_from"
+                label="Date From"
+                type="date"
+                :required="report !== 'registered'"
+                hide-details
+            />
+            <v-text-field
+                v-model="draft.date_to"
+                label="Date To"
+                type="date"
+                :min="draft.date_from || undefined"
+                :required="report !== 'registered'"
+                hide-details
+            />
+            <template v-if="report !== 'active'">
+                <v-select
+                    v-model="draft.account_verified"
+                    :items="['All', 'Verified', 'Pending', 'Files Submitted', 'Rejected']"
+                    label="Verification Status"
+                    hide-details
+                />
+                <v-select
+                    v-model="draft.status"
+                    :items="['All', 'Active', 'Inactive']"
+                    label="Account Status"
+                    hide-details
+                />
+            </template> </AdminFilterDialog
+    ></PlayerShell>
 </template>
 
 <style scoped>

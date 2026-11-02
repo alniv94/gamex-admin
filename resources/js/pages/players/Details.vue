@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import { verify, reject, setting, fund } from '@/actions/App/Http/Controllers/PlayerController';
 import { useForm } from '@inertiajs/vue3';
@@ -259,7 +260,7 @@ function openImage(index: number) {
                 <v-card class="mb-4">
                     <div class="player-section-title">Player Fund Accounts</div>
                     <v-divider />
-                    <v-data-table
+                    <AdminDataTable
                         v-if="fundAccounts.length"
                         :items="fundAccounts"
                         :headers="[
@@ -307,7 +308,7 @@ function openImage(index: number) {
                                         class="text-error"
                                         @click="openFund(item, 'reject')" /></v-list></v-menu
                         ></template>
-                    </v-data-table>
+                    </AdminDataTable>
                     <div v-else class="text-center text-medium-emphasis pa-6">
                         No data available
                     </div>

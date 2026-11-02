@@ -65,7 +65,7 @@ test('ending creation, result, verification, declaration, and audit at each view
     await page.getByRole('button', { name: 'Filter games', exact: true }).click();
     await expect(filters.getByLabel('Schedule Date Start', { exact: true })).toHaveValue(today);
     await filters.getByLabel('Schedule Date Start', { exact: true }).fill('');
-    await filters.getByRole('button', { name: 'Filter', exact: true }).click();
+    await filters.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await expect(
         filters.getByText('Schedule Date Start is required.', { exact: true }),
     ).toBeVisible();
@@ -73,7 +73,7 @@ test('ending creation, result, verification, declaration, and audit at each view
     await filters.getByLabel('Schedule Date End (Optional)', { exact: true }).fill('');
     await filters.getByLabel('League', { exact: true }).fill('Test');
     await page.getByRole('option', { name: 'Test League', exact: true }).click();
-    await filters.getByRole('button', { name: 'Filter', exact: true }).click();
+    await filters.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await expect(filters).not.toBeVisible();
     await expect(page).toHaveURL(/date_from=2000-01-01/);
     await expect(page).toHaveURL(/date_to=2000-01-01/);
@@ -214,7 +214,8 @@ test('ending creation, result, verification, declaration, and audit at each view
     await cardsPage.getByRole('textbox', { name: 'Search', exact: true }).fill(cardNumber.slice(1));
     await expect(cardRow).toBeVisible();
     const cardDownload = cardsPage.waitForEvent('download');
-    await cardsPage.getByRole('button', { name: 'Export current page', exact: true }).click();
+    await cardsPage.getByRole('button', { name: 'Export data', exact: true }).click();
+    await cardsPage.getByRole('listitem').filter({ hasText: 'Current page (CSV)' }).click();
     expect((await cardDownload).suggestedFilename()).toBe(`ending-game-${100 + index}-cards.csv`);
     expect(
         await cardsPage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
@@ -314,7 +315,8 @@ test('ending creation, result, verification, declaration, and audit at each view
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('cell', { name: `Comets ${index}`, exact: true })).toBeVisible();
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Export current page', exact: true }).click();
+    await page.getByRole('button', { name: 'Export data', exact: true }).click();
+    await page.getByRole('listitem').filter({ hasText: 'Current page (CSV)' }).click();
     expect((await download).suggestedFilename()).toBe('ending-teams.csv');
     await page.screenshot({
         path: `storage/app/visual-baselines/${info.project.name}-ending-teams.png`,

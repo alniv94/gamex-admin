@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { usePermissions } from '@/composables/usePermissions';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
@@ -277,6 +279,46 @@ function viewCard(card: GameCard) {
         },
     });
 }
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Bet type', key: 'bet_type_id', sortable: true },
+    { title: 'Total cards', key: 'cards', sortable: true },
+    { title: 'Subtracted cards', key: 'disabled_cards', sortable: true },
+    { title: `Cards exceeding ${props.cardThreshold} bets`, key: 'exceeded_cards', sortable: true },
+    { title: 'Action', key: 'actions', sortable: false },
+];
+const tableHeaders2: DataTableHeader[] = [
+    { title: 'Quarter', key: 'quarter_id', sortable: true },
+    { title: props.game.team_a_name, key: 'team_a_score', sortable: true },
+    { title: props.game.team_b_name, key: 'team_b_score', sortable: true },
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'actions', key: 'actions', sortable: false },
+];
+const tableHeaders3: DataTableHeader[] = [
+    { title: 'Card', key: 'id', sortable: true },
+    { title: 'Type', key: 'bet_type_id', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Bets', key: 'bets', sortable: true },
+    { title: 'Betting', key: 'betting', sortable: true },
+    { title: 'Actions', key: 'actions', sortable: false },
+];
+const tableHeaders4: DataTableHeader[] = [
+    { title: 'Quarter / Card', key: 'quarter_id', sortable: true },
+    { title: 'Player', key: 'player_name', sortable: true },
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'Prize', key: 'cash_prize', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Released', key: 'prize_released', sortable: true },
+    { title: 'Actions', key: 'actions', sortable: false },
+];
+const tableHeaders5: DataTableHeader[] = [
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'Quarter', key: 'quarter_id', sortable: true },
+    { title: 'Player / Ticket', key: 'player_name', sortable: true },
+    { title: 'Result', key: 'result', sortable: true },
+    { title: 'Refunded', key: 'refunded', sortable: true },
+];
 </script>
 <template>
     <div>
@@ -489,19 +531,14 @@ function viewCard(card: GameCard) {
                         >
                     </div>
                 </div>
-                <v-table class="ending-table" density="compact"
-                    ><thead>
-                        <tr>
-                            <th>Amount</th>
-                            <th>Bet type</th>
-                            <th>Total cards</th>
-                            <th>Subtracted cards</th>
-                            <th>Cards exceeding {{ cardThreshold }} bets</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="amount in amounts" :key="amount.id">
+                <AdminDataTable
+                    :headers="tableHeaders"
+                    :items="amounts"
+                    :toolbar="true"
+                    title="Bet amounts"
+                >
+                    <template #item="{ item: amount }"
+                        ><tr :key="amount.id">
                             <td class="text-no-wrap">PHP {{ money(amount.amount) }}</td>
                             <td>{{ betType(amount.bet_type_id) }}</td>
                             <td>{{ amount.cards }}</td>
@@ -545,15 +582,10 @@ function viewCard(card: GameCard) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 />
-                            </td>
-                        </tr>
-                        <tr v-if="!amounts.length">
-                            <td colspan="6" class="text-center pa-8">
-                                No bet amounts yet. Create a bet to add cards.
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
+                            </td></tr
+                    ></template>
+                    <template #no-data> No bet amounts yet. Create a bet to add cards. </template>
+                </AdminDataTable>
             </v-card>
             <v-card class="ending-table">
                 <v-tabs v-model="tab" color="primary" show-arrows
@@ -568,18 +600,14 @@ function viewCard(card: GameCard) {
                         Enter the official scores for each quarter. The last digit of each score
                         determines the winning combination.
                     </p>
-                    <v-table
-                        ><thead>
-                            <tr>
-                                <th>Quarter</th>
-                                <th>{{ game.team_a_name }}</th>
-                                <th>{{ game.team_b_name }}</th>
-                                <th>Combination</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="result in results" :key="result.id">
+                    <AdminDataTable
+                        :headers="tableHeaders2"
+                        :items="results"
+                        :toolbar="true"
+                        title="Results"
+                    >
+                        <template #item="{ item: result }"
+                            ><tr :key="result.id">
                                 <td>{{ result.quarter_id }}</td>
                                 <td>{{ result.team_a_score }}</td>
                                 <td>{{ result.team_b_score }}</td>
@@ -599,14 +627,10 @@ function viewCard(card: GameCard) {
                                         >Correct Result</v-btn
                                     >
                                 </td>
-                            </tr>
-                            <tr v-if="!results.length">
-                                <td colspan="5" class="pa-8 text-center text-medium-emphasis">
-                                    No results yet.
-                                </td>
-                            </tr>
-                        </tbody></v-table
-                    >
+                            </tr></template
+                        >
+                        <template #no-data> No results yet. </template>
+                    </AdminDataTable>
                 </div>
                 <div v-if="tab === 'cards'">
                     <div v-if="cardAmountFilter" class="d-flex align-center flex-wrap ga-2 pa-3">
@@ -643,8 +667,14 @@ function viewCard(card: GameCard) {
                             ></v-expansion-panel
                         ></v-expansion-panels
                     >
-                    <v-table
-                        ><thead>
+                    <AdminDataTable
+                        :headers="tableHeaders3"
+                        :items="cards.data"
+                        server
+                        :toolbar="true"
+                        title="Game cards"
+                    >
+                        <template #headers>
                             <tr>
                                 <th>Card</th>
                                 <th>Type</th>
@@ -653,9 +683,9 @@ function viewCard(card: GameCard) {
                                 <th>Betting</th>
                                 <th>Actions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="card in cards.data" :key="card.id">
+                        </template>
+                        <template #item="{ item: card }"
+                            ><tr :key="card.id">
                                 <td>#{{ String(card.id).padStart(6, '0') }}</td>
                                 <td>{{ betType(card.bet_type_id) }}</td>
                                 <td>{{ money(card.amount) }}</td>
@@ -683,13 +713,9 @@ function viewCard(card: GameCard) {
                                         }}</v-btn
                                     >
                                 </td>
-                            </tr>
-                            <tr v-if="!cards.data.length">
-                                <td colspan="6" class="pa-8 text-center text-medium-emphasis">
-                                    No cards created.
-                                </td>
-                            </tr>
-                        </tbody></v-table
+                            </tr></template
+                        >
+                        <template #no-data> No cards created. </template> </AdminDataTable
                     ><EndingPager :page="cards" />
                 </div>
                 <div v-if="tab === 'winners' && winners">
@@ -697,8 +723,14 @@ function viewCard(card: GameCard) {
                         Winning bets appear after a result is entered. Verify each winner, then
                         approve to declare. Prize release is tracked separately.
                     </p>
-                    <v-table
-                        ><thead>
+                    <AdminDataTable
+                        :headers="tableHeaders4"
+                        :items="winners.data"
+                        server
+                        :toolbar="true"
+                        title="Winners"
+                    >
+                        <template #headers>
                             <tr>
                                 <th>Quarter / Card</th>
                                 <th>Player</th>
@@ -708,12 +740,9 @@ function viewCard(card: GameCard) {
                                 <th>Released</th>
                                 <th>Actions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="(winner, index) in winners.data"
-                                :key="`${winner.bet_id}-${winner.quarter_id}-${index}`"
-                            >
+                        </template>
+                        <template #item="{ item: winner, index: index }"
+                            ><tr :key="`${winner.bet_id}-${winner.quarter_id}-${index}`">
                                 <td class="text-no-wrap">
                                     Q{{ winner.quarter_id }} · #{{ winner.card_id }}
                                 </td>
@@ -788,13 +817,9 @@ function viewCard(card: GameCard) {
                                         ></template
                                     >
                                 </td>
-                            </tr>
-                            <tr v-if="!winners.data.length">
-                                <td colspan="7" class="pa-8 text-center text-medium-emphasis">
-                                    No winning bets found.
-                                </td>
-                            </tr>
-                        </tbody></v-table
+                            </tr></template
+                        >
+                        <template #no-data> No winning bets found. </template> </AdminDataTable
                     ><EndingPager :page="winners" />
                 </div>
                 <EndingLogs v-if="tab === 'logs'" :logs="logs" /><EndingLogs
@@ -1125,18 +1150,14 @@ function viewCard(card: GameCard) {
                 ><v-card
                     ><v-card-title>Card #{{ selectedCard?.id }} · Bets</v-card-title
                     ><v-progress-linear v-if="betLoading" indeterminate /><v-card-text
-                        ><v-table
-                            ><thead>
-                                <tr>
-                                    <th>Combination</th>
-                                    <th>Quarter</th>
-                                    <th>Player / Ticket</th>
-                                    <th>Result</th>
-                                    <th>Refunded</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="bet in bets" :key="bet.id">
+                        ><AdminDataTable
+                            :headers="tableHeaders5"
+                            :items="bets"
+                            :toolbar="true"
+                            title="Card bets"
+                        >
+                            <template #item="{ item: bet }"
+                                ><tr :key="bet.id">
                                     <td>{{ bet.combination }}</td>
                                     <td>{{ bet.quarter_id || 'All' }}</td>
                                     <td>
@@ -1148,14 +1169,10 @@ function viewCard(card: GameCard) {
                                     </td>
                                     <td>{{ bet.result }}</td>
                                     <td>{{ bet.refunded }}</td>
-                                </tr>
-                                <tr v-if="!betLoading && !bets.length">
-                                    <td colspan="5" class="pa-5 text-center">
-                                        No bets on this card.
-                                    </td>
-                                </tr>
-                            </tbody></v-table
-                        ></v-card-text
+                                </tr></template
+                            >
+                            <template #no-data> No bets on this card. </template>
+                        </AdminDataTable></v-card-text
                     ><v-card-actions
                         ><v-spacer /><v-btn @click="selectedCard = null"
                             >Close</v-btn

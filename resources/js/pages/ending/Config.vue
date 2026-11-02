@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { computed, ref } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import EndingCatalogController from '@/actions/App/Http/Controllers/EndingCatalogController';
 import EndingShell from '../../components/ending/EndingShell.vue';
-import EndingToolbar from '../../components/ending/EndingToolbar.vue';
 import type { AdminPageProps } from '../../types';
 import type { ConfigRecord, CardPreset } from '../../types/ending';
 import { betType, money } from '../../types/ending';
@@ -15,8 +15,6 @@ const props = defineProps<{
     migrationReady: boolean;
 }>();
 const page = usePage<AdminPageProps>();
-const search = ref('');
-const presetSearch = ref('');
 const selectedType = ref(2);
 const filteredPresets = computed(() =>
     props.presets.filter((p) => p.bet_type_id === selectedType.value),
@@ -132,24 +130,29 @@ function deletePreset() {
 <template>
     <EndingShell title="Config" :migration-ready="migrationReady">
         <v-card class="mb-4">
-            <EndingToolbar
-                v-model="search"
-                :create-label="availableNames.length ? 'Create Configuration' : undefined"
-                :disabled="!migrationReady"
-                @create="openConfig(null)"
-                @refresh="router.reload()"
-            />
             <v-divider />
-            <v-data-table
+            <AdminDataTable
+                :toolbar="true"
+                title="Configurations"
+                search-label="Search configurations"
                 :headers="configHeaders"
                 :items="records"
-                :search="search"
                 :items-per-page="5"
                 :items-per-page-options="[5, 10, 25, 50]"
                 class="ending-table"
                 density="compact"
                 no-data-text="No configuration found."
-            >
+                ><template #actions
+                    ><v-btn
+                        v-if="availableNames.length"
+                        color="primary"
+                        size="small"
+                        prepend-icon="mdi-plus"
+                        :disabled="!migrationReady"
+                        @click="openConfig(null)"
+                        >Create Configuration</v-btn
+                    ></template
+                >
                 <template #item.actions="{ item }"
                     ><v-btn
                         icon="mdi-cog-outline"
@@ -160,37 +163,9 @@ function deletePreset() {
                         :disabled="!migrationReady"
                         @click="openConfig(item)"
                 /></template>
-            </v-data-table>
+            </AdminDataTable>
         </v-card>
         <v-card>
-            <div class="ending-toolbar">
-                <div class="d-flex align-center flex-wrap ga-2">
-                    <h2 class="text-subtitle-1 font-weight-bold">Bet &amp; Card Presets</h2>
-                    <v-btn
-                        color="primary"
-                        size="small"
-                        prepend-icon="mdi-plus"
-                        :disabled="!migrationReady"
-                        @click="openPreset(null)"
-                        >New Preset</v-btn
-                    >
-                    <v-btn
-                        icon="mdi-sync"
-                        variant="text"
-                        size="small"
-                        aria-label="Refresh presets"
-                        @click="router.reload({ only: ['presets'] })"
-                    />
-                </div>
-                <v-text-field
-                    v-model="presetSearch"
-                    label="Search presets"
-                    prepend-inner-icon="mdi-magnify"
-                    hide-details
-                    class="ending-search"
-                    clearable
-                />
-            </div>
             <v-divider />
             <div class="pa-4 pb-0">
                 <v-alert type="info" variant="outlined" density="compact" class="mb-3"
@@ -214,17 +189,28 @@ function deletePreset() {
                     >
                 </div>
             </div>
-            <v-data-table
+            <AdminDataTable
+                :toolbar="true"
+                title="Bet &amp; Card Presets"
+                search-label="Search presets"
                 :headers="presetHeaders"
                 :items="filteredPresets"
-                :search="presetSearch"
                 :items-per-page="25"
                 :items-per-page-options="[5, 10, 25, 50]"
                 :sort-by="[{ key: 'amount', order: 'asc' }]"
                 class="ending-table"
                 density="compact"
                 no-data-text="No presets found for this bet type."
-            >
+                ><template #actions
+                    ><v-btn
+                        color="primary"
+                        size="small"
+                        prepend-icon="mdi-plus"
+                        :disabled="!migrationReady"
+                        @click="openPreset(null)"
+                        >New Preset</v-btn
+                    ></template
+                >
                 <template #item.actions="{ item }">
                     <v-btn
                         icon="mdi-pencil-outline"
@@ -253,7 +239,7 @@ function deletePreset() {
                         >{{ item.status }}</v-chip
                     ></template
                 >
-            </v-data-table>
+            </AdminDataTable>
         </v-card>
         <v-dialog
             v-model="configDialog"

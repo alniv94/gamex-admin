@@ -70,7 +70,7 @@ test('cashier pages support review, verification, approval, filters and export',
         const filter = page.getByRole('dialog');
         await filter.getByRole('combobox', { name: 'Status', exact: true }).press('Enter');
         await page.getByRole('option', { name: 'Verified', exact: true }).click();
-        await filter.getByRole('button', { name: 'Filter', exact: true }).click();
+        await filter.getByRole('button', { name: 'Apply filters', exact: true }).click();
         await expect(page.locator('tbody tr')).toHaveCount(1);
         await page
             .getByRole('button', { name: `Review ${title} request ${900 + index}`, exact: true })
@@ -79,7 +79,10 @@ test('cashier pages support review, verification, approval, filters and export',
         await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
         await expect(dialog).not.toBeVisible();
         const download = page.waitForEvent('download');
-        await page.getByRole('link', { name: `Export ${title}`, exact: true }).click();
+        await page.getByRole('button', { name: 'Export data', exact: true }).click();
+        await page
+            .getByRole('link', { name: 'All matching transactions (CSV)', exact: true })
+            .click();
         expect((await download).suggestedFilename()).toMatch(
             new RegExp(`^${kind}-report-.*\\.csv$`),
         );

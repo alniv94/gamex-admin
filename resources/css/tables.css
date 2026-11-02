@@ -1,0 +1,173 @@
+.admin-data-table {
+    min-width: 0;
+    max-width: 100%;
+}
+.admin-table-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 76px;
+    padding: 16px;
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.admin-table-actions,
+.admin-table-search-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.admin-table-search-controls {
+    flex: 0 1 440px;
+    margin-left: auto;
+}
+.admin-table-search-controls > .v-input {
+    flex: 1 1 220px;
+    min-width: 180px;
+}
+.admin-table-title {
+    margin: 0 8px 0 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+.admin-table-actions .v-btn,
+.admin-table-search-controls .v-btn {
+    letter-spacing: normal;
+    text-transform: none;
+}
+.admin-active-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #fafbfc;
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.admin-active-filters-label {
+    color: #60717d;
+    font-size: 12px;
+    margin-right: 4px;
+}
+.admin-active-filters .v-chip {
+    max-width: 100%;
+}
+.admin-active-filters .v-chip__content {
+    min-width: 0;
+}
+.admin-active-filter-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.admin-active-filters .v-btn,
+.admin-filter-actions .v-btn {
+    text-transform: none;
+    letter-spacing: normal;
+}
+.admin-filter-count {
+    padding: 1px 6px;
+    margin-left: 6px;
+    border-radius: 8px;
+    background: rgba(var(--v-theme-primary), 0.12);
+    font-size: 11px;
+}
+.admin-filter-dialog .admin-filter-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 56px;
+    padding: 8px 16px;
+}
+.admin-filter-dialog .admin-filter-heading {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    letter-spacing: normal;
+}
+.admin-filter-dialog .admin-filter-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 16px;
+}
+.admin-filter-dialog .admin-filter-card {
+    max-height: calc(100dvh - 48px);
+}
+.admin-filter-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.admin-filter-fields .v-input {
+    margin-bottom: 0 !important;
+}
+.admin-filter-dialog .admin-filter-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #fafbfc;
+    flex: 0 0 auto;
+    padding: 12px 16px;
+}
+.admin-data-table .admin-table .v-table__wrapper > table > thead > tr > th,
+.admin-table .v-table__wrapper > table > thead > tr > th,
+.admin-table > .v-table__wrapper > table > thead > tr > td {
+    height: 48px;
+    padding: 10px 16px;
+    background: #f5f7f9;
+    color: #455a64;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-transform: none;
+    letter-spacing: normal;
+}
+.admin-data-table .admin-table .v-table__wrapper > table > tbody > tr > td,
+.admin-table .v-table__wrapper > table > tbody > tr > td {
+    height: 52px;
+    padding: 10px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+}
+.admin-table .v-table__wrapper > table > tbody > tr:hover > td {
+    background: #f8fbfd;
+}
+.admin-table .v-data-table-footer,
+.admin-table-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-height: 64px;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    background: #fafbfc;
+    font-size: 12px;
+}
+.admin-table-pager .ending-page-size {
+    flex: 0 0 76px;
+    max-width: 76px;
+}
+@media (max-width: 599px) {
+    .admin-table-search-controls {
+        flex-basis: 100%;
+        width: 100%;
+    }
+    .admin-table-toolbar {
+        padding: 12px;
+    }
+    .admin-table-pager {
+        justify-content: center;
+        padding-inline: 8px;
+    }
+}

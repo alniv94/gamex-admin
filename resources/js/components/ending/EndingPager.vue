@@ -17,21 +17,21 @@ function visit(url: string | null) {
 }
 </script>
 <template>
-    <div class="d-flex align-center justify-end flex-wrap ga-2 pa-3">
+    <div class="admin-table-pager" aria-label="Table pagination">
         <template v-if="selectable">
             <span class="text-caption">Rows per page:</span>
             <v-select
                 :model-value="page.per_page"
                 :items="pageSizes"
                 aria-label="Rows per page"
-                variant="plain"
+                variant="outlined"
                 density="compact"
                 hide-details
                 class="ending-page-size"
                 @update:model-value="resize"
             />
         </template>
-        <span class="text-caption mr-2"
+        <span class="text-caption mr-2" aria-live="polite"
             >{{ page.from || 0 }}–{{ page.to || 0 }} of {{ page.total.toLocaleString() }}</span
         >
         <v-btn

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { index, bets, refresh, winner } from '@/actions/App/Http/Controllers/LuckyFourController';
@@ -87,6 +89,25 @@ function refreshPool() {
         headers: { 'X-CSRF-TOKEN': page.props.csrf_token },
     });
 }
+
+const tableHeaders: DataTableHeader[] = [
+    { title: 'Ending bet', key: 'ending_bet_id', sortable: true },
+    { title: 'Player', key: 'player_name', sortable: true },
+    { title: 'Combination', key: 'combination', sortable: true },
+    { title: 'Prize tier', key: 'tier', sortable: true },
+    { title: 'Prize', key: 'prize_amount', sortable: true },
+    { title: 'Status', key: 'winner_status', sortable: true },
+    { title: 'Actions', key: 'actions', sortable: false },
+];
+const tableHeaders2: DataTableHeader[] = [
+    { title: 'When', key: 'created_at', sortable: true },
+    { title: 'Action', key: 'action', sortable: true },
+    { title: 'Administrator', key: 'actor', sortable: true },
+];
+const tableHeaders3: DataTableHeader[] = [
+    { title: 'When', key: 'created_at', sortable: true },
+    { title: 'Details', key: 'details', sortable: true },
+];
 </script>
 <template>
     <LuckyFourShell :title="'Game #' + game.id" :migration-ready="migrationReady">
@@ -392,8 +413,15 @@ function refreshPool() {
                             >
                         </div>
                     </div>
-                    <v-table v-else class="ending-table winner-table"
-                        ><thead>
+                    <AdminDataTable
+                        v-else
+                        :headers="tableHeaders"
+                        :items="winners.data"
+                        server
+                        :toolbar="true"
+                        title="Winners"
+                    >
+                        <template #headers>
                             <tr>
                                 <th>Ending bet</th>
                                 <th>Player</th>
@@ -403,9 +431,9 @@ function refreshPool() {
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="bet in winners.data" :key="bet.id">
+                        </template>
+                        <template #item="{ item: bet }"
+                            ><tr :key="bet.id">
                                 <td data-label="Ending bet">#{{ bet.ending_bet_id }}</td>
                                 <td data-label="Player">
                                     {{ bet.player_name || 'Unresolved player' }}
@@ -496,8 +524,8 @@ function refreshPool() {
                                         >
                                     </div>
                                 </td>
-                            </tr>
-                        </tbody></v-table
+                            </tr></template
+                        > </AdminDataTable
                     ><EndingPager v-if="winners.total > 0" :page="winners" />
                 </div>
                 <div v-else class="activity-panel">
@@ -509,40 +537,39 @@ function refreshPool() {
                             <p>Jackpot refreshes and winner reviews will appear here.</p>
                         </div>
                     </div>
-                    <v-table v-else class="ending-table"
-                        ><thead>
-                            <tr>
-                                <th>When</th>
-                                <th>Action</th>
-                                <th>Administrator</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="log in audits" :key="log.id">
+                    <AdminDataTable
+                        v-else
+                        :headers="tableHeaders2"
+                        :items="audits"
+                        :toolbar="true"
+                        title="Activity"
+                    >
+                        <template #item="{ item: log }"
+                            ><tr :key="log.id">
                                 <td>{{ displayDate(log.created_at) }}</td>
                                 <td>{{ log.action.replaceAll('_', ' ') }}</td>
                                 <td>{{ log.actor || '—' }}</td>
-                            </tr>
-                        </tbody></v-table
-                    >
+                            </tr></template
+                        >
+                    </AdminDataTable>
                     <h2 class="activity-heading imported-heading">Imported activity</h2>
                     <p v-if="!legacyLogs.length" class="activity-note">
                         No historical activity was imported for this game.
                     </p>
-                    <v-table v-else class="ending-table"
-                        ><thead>
-                            <tr>
-                                <th>When</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="log in legacyLogs" :key="log.id">
+                    <AdminDataTable
+                        v-else
+                        :headers="tableHeaders3"
+                        :items="legacyLogs"
+                        :toolbar="true"
+                        title="Historical activity"
+                    >
+                        <template #item="{ item: log }"
+                            ><tr :key="log.id">
                                 <td>{{ displayDate(log.created_at) }}</td>
                                 <td>{{ log.details || log.action }}</td>
-                            </tr>
-                        </tbody></v-table
-                    >
+                            </tr></template
+                        >
+                    </AdminDataTable>
                 </div>
             </v-card>
         </div>

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import { cashins, fund, show } from '@/actions/App/Http/Controllers/AgentController';
 import { evaluate as evaluatePlayer } from '@/actions/App/Http/Controllers/PlayerCashierController';
 import AgentShell from '@/components/agents/AgentShell.vue';
@@ -60,6 +66,7 @@ function visit() {
             replace: true,
             onStart: () => (busy.value = true),
             onFinish: () => (busy.value = false),
+            onSuccess: () => (filterOpen.value = false),
         },
     );
 }
@@ -129,11 +136,11 @@ function weekStart() {
     return date.toISOString().slice(0, 10);
 }
 const datePreset = computed(() => {
-    if (!filters.date_from && !filters.date_to) return 'all';
-    if (filters.date_to !== props.today) return 'custom';
-    if (filters.date_from === props.today) return 'today';
-    if (filters.date_from === weekStart()) return 'week';
-    if (filters.date_from === `${props.today.slice(0, 7)}-01`) return 'month';
+    if (!draft.date_from && !draft.date_to) return 'all';
+    if (draft.date_to !== props.today) return 'custom';
+    if (draft.date_from === props.today) return 'today';
+    if (draft.date_from === weekStart()) return 'week';
+    if (draft.date_from === `${props.today.slice(0, 7)}-01`) return 'month';
     return 'custom';
 });
 function setDateRange(value: 'today' | 'week' | 'month' | 'all') {
@@ -170,7 +177,7 @@ const rangeLabel = computed(() => {
     return `${playerDate(from, true)} to ${playerDate(to, true)}`;
 });
 const dateBasis = computed(() =>
-    ['Approved', 'Disapproved', 'Rejected'].includes(filters.status)
+    ['Approved', 'Disapproved', 'Rejected'].includes(draft.status)
         ? 'Evaluated date'
         : 'Created date',
 );
@@ -201,6 +208,61 @@ function statusColor(status: string) {
 function actionLabel(value: string) {
     return value.charAt(0).toUpperCase() + value.slice(1);
 }
+
+const tableHeaders: DataTableHeader<AgentCashin>[] = [
+    { title: 'Agent', key: 'first_name', value: agentName, sortable: true },
+    { title: 'Player', key: 'player_name', sortable: true },
+    { title: 'Payment', key: 'payment_method', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Created at', key: 'created_at', sortable: true },
+    { title: 'Evaluated at', key: 'evaluated_at', sortable: true },
+    { title: 'Actions', key: 'actions', sortable: false },
+];
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        'status',
+        {
+            key: 'agent_id',
+            options: props.agents.map((agent) => ({ title: agentName(agent), value: agent.id })),
+        },
+        'date_range',
+    ],
+    (changes) => {
+        Object.assign(filters, changes);
+        visit();
+    },
+    resetFilters,
+);
+const filterOpen = ref(false);
+const draft = reactive({ ...filters });
+function openFilters() {
+    Object.assign(draft, props.filters);
+    filterError.value = '';
+    filterOpen.value = true;
+}
+function applyFilters() {
+    if (draft.date_from && draft.date_to && draft.date_to < draft.date_from) {
+        filterError.value = 'To date must be on or after from date.';
+        return;
+    }
+    Object.assign(filters, draft);
+    visit();
+}
+function setDraftDateRange(value: 'today' | 'week' | 'month' | 'all') {
+    draft.date_from =
+        value === 'all'
+            ? ''
+            : value === 'week'
+              ? weekStart()
+              : value === 'month'
+                ? props.today.slice(0, 7) + '-01'
+                : props.today;
+    draft.date_to = value === 'all' ? '' : props.today;
+}
 </script>
 
 <template>
@@ -222,113 +284,31 @@ function actionLabel(value: string) {
         </template>
         <v-defaults-provider :defaults="fieldDefaults">
             <v-card class="agents-panel" :aria-busy="busy">
-                <div class="cashin-toolbar">
-                    <h2 class="cashin-list-title">Cash-in requests</h2>
-                    <div class="cashin-search">
-                        <v-text-field
-                            v-model="filters.search"
-                            placeholder="Search name or reference…"
-                            aria-label="Search cash-ins"
-                            prepend-inner-icon="mdi-magnify"
-                            hide-details
-                            clearable
-                            :error-messages="page.props.errors.search"
-                            @update:model-value="search"
-                        />
-                        <v-btn
-                            icon="mdi-refresh"
-                            variant="text"
-                            size="small"
-                            aria-label="Refresh cash-ins"
-                            title="Refresh cash-ins"
-                            :loading="busy"
-                            @click="visit"
-                        />
-                    </div>
-                </div>
-                <form class="cashin-filters" @submit.prevent="visit">
-                    <div class="cashin-filter-grid">
-                        <v-autocomplete
-                            v-model="filters.agent_id"
-                            :items="agents"
-                            item-title="name"
-                            item-value="id"
-                            label="Agent"
-                            placeholder="All agents"
-                            clearable
-                            class="cashin-agent-filter"
-                            :disabled="busy"
-                            :error-messages="page.props.errors.agent_id"
-                        />
-                        <v-select
-                            v-model="filters.status"
-                            :items="[
-                                'All',
-                                'Pending',
-                                'Verified',
-                                'Rejected',
-                                'Approved',
-                                'Disapproved',
-                            ]"
-                            label="Status"
-                            class="cashin-status-filter"
-                            :disabled="busy"
-                        />
-                        <v-text-field
-                            v-model="filters.date_from"
-                            type="date"
-                            label="From date"
-                            :error-messages="page.props.errors.date_from"
-                            :disabled="busy"
-                        />
-                        <v-text-field
-                            v-model="filters.date_to"
-                            type="date"
-                            label="To date"
-                            :min="filters.date_from || undefined"
-                            :error-messages="filterError || page.props.errors.date_to"
-                            :disabled="busy"
-                        />
-                        <div class="cashin-filter-actions">
-                            <v-btn
-                                type="submit"
-                                variant="flat"
-                                color="#007faa"
-                                height="40"
-                                :loading="busy"
-                                >Apply filters</v-btn
-                            >
-                            <v-btn
-                                type="button"
-                                variant="text"
-                                height="40"
-                                :disabled="busy"
-                                @click="resetFilters"
-                                >Reset</v-btn
-                            >
-                        </div>
-                    </div>
-                    <div class="cashin-date-options">
-                        <div class="cashin-presets" aria-label="Quick date ranges">
-                            <v-btn
-                                v-for="option in dateOptions"
-                                :key="option.value"
-                                size="small"
-                                height="30"
-                                :variant="datePreset === option.value ? 'tonal' : 'text'"
-                                :color="datePreset === option.value ? '#007faa' : undefined"
-                                :aria-pressed="datePreset === option.value"
-                                :disabled="busy"
-                                @click="setDateRange(option.value)"
-                                >{{ option.label }}</v-btn
-                            >
-                        </div>
-                        <span class="cashin-date-hint"
-                            ><v-icon size="15">mdi-calendar-outline</v-icon> {{ dateBasis }} ·
-                            Philippine time</span
-                        >
-                    </div>
-                </form>
+                <AdminTableToolbar
+                    :filters-open="filterOpen"
+                    filterable
+                    @filter="openFilters"
+                    :active-filters="activeFilters"
+                    @remove-filter="removeFilter"
+                    @reset-filters="resetTableFilters"
+                    :total="records.total"
+                    v-model="filters.search"
+                    title="Cash-in requests"
+                    search-label="Search cash-ins"
+                    refresh-label="Refresh cash-ins"
+                    :exports="[
+                        {
+                            title: 'Current page (CSV)',
+                            action: () =>
+                                exportTableItems('agents-cashin.csv', records.data, tableHeaders),
+                        },
+                    ]"
+                    @refresh="visit"
+                    @search="search"
+                    :loading="busy"
+                >
+                </AdminTableToolbar>
+
                 <div class="cashin-summary">
                     <div class="cashin-total">
                         <span class="cashin-total-icon"
@@ -363,12 +343,15 @@ function actionLabel(value: string) {
                 <div class="cashin-progress">
                     <v-progress-linear v-if="busy" indeterminate color="#007faa" height="2" />
                 </div>
-                <v-table
+                <AdminDataTable
                     v-if="records.data.length"
-                    class="ending-table cashin-table"
-                    density="comfortable"
+                    :headers="tableHeaders"
+                    :items="records.data"
+                    server
+                    :toolbar="false"
+                    title="Cash-in requests"
                 >
-                    <thead>
+                    <template #headers>
                         <tr>
                             <AgentSortHeader
                                 label="Agent"
@@ -415,9 +398,9 @@ function actionLabel(value: string) {
                             />
                             <th scope="col">Details</th>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="record in records.data" :key="record.id">
+                    </template>
+                    <template #item="{ item: record }"
+                        ><tr :key="record.id">
                             <td class="cashin-agent-cell">
                                 <Link :href="show(record.agent_id)">{{ agentName(record) }}</Link
                                 ><span class="cashin-cell-secondary"
@@ -459,10 +442,9 @@ function actionLabel(value: string) {
                                     title="View transaction details"
                                     @click="openDetails(record)"
                                 />
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
+                            </td></tr
+                    ></template>
+                </AdminDataTable>
                 <div v-else class="cashin-empty" role="status" aria-live="polite">
                     <v-progress-circular v-if="busy" indeterminate color="#007faa" size="36" />
                     <template v-else>
@@ -785,7 +767,56 @@ function actionLabel(value: string) {
                 </v-card>
             </v-dialog>
         </v-defaults-provider>
-    </AgentShell>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="busy"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-autocomplete
+                v-model="draft.agent_id"
+                :items="agents"
+                item-title="name"
+                item-value="id"
+                label="Agent"
+                placeholder="All agents"
+                clearable
+                :error-messages="page.props.errors.agent_id"
+            />
+            <v-select
+                v-model="draft.status"
+                :items="['All', 'Pending', 'Verified', 'Rejected', 'Approved', 'Disapproved']"
+                label="Status"
+            />
+            <v-row dense
+                ><v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_from"
+                        type="date"
+                        label="From date"
+                        :error-messages="page.props.errors.date_from" /></v-col
+                ><v-col cols="12" sm="6"
+                    ><v-text-field
+                        v-model="draft.date_to"
+                        type="date"
+                        label="To date"
+                        :min="draft.date_from || undefined"
+                        :error-messages="filterError || page.props.errors.date_to" /></v-col
+            ></v-row>
+            <div class="d-flex flex-wrap ga-2" aria-label="Quick date ranges">
+                <v-btn
+                    v-for="option in dateOptions"
+                    :key="option.value"
+                    size="small"
+                    :variant="datePreset === option.value ? 'tonal' : 'text'"
+                    :aria-pressed="datePreset === option.value"
+                    @click="setDraftDateRange(option.value)"
+                    >{{ option.label }}</v-btn
+                >
+            </div>
+            <p class="text-caption text-medium-emphasis">{{ dateBasis }} ? Philippine time</p>
+        </AdminFilterDialog></AgentShell
+    >
 </template>
 
 <style scoped>

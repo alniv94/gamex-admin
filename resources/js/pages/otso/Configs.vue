@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { ref, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { storeConfig, updateConfig } from '@/actions/App/Http/Controllers/OtsoPanaloController';
@@ -113,8 +114,21 @@ function submit() {
                     >
                 </div>
                 <v-divider />
-                <v-table class="ending-table" aria-label="Game configurations" hover>
-                    <thead class="bg-background text-medium-emphasis">
+                <AdminDataTable
+                    aria-label="Game configurations"
+                    hover
+                    :headers="[
+                        { title: 'Configuration', key: 'name' },
+                        ...prizeFields.map((field) => ({ title: field.label, key: field.key })),
+                        { title: 'Status', key: 'status' },
+                        { title: 'Actions', key: 'actions', sortable: false },
+                    ]"
+                    :items="configs.data"
+                    server
+                    :toolbar="true"
+                    title="Configurations"
+                >
+                    <template #headers>
                         <tr>
                             <th scope="col" class="ps-6">Configuration</th>
                             <th
@@ -128,10 +142,9 @@ function submit() {
                             <th scope="col">Status</th>
                             <th scope="col" class="text-right">Actions</th>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="config in configs.data"
+                    </template>
+                    <template #item="{ item: config }"
+                        ><tr
                             :key="config.id"
                             :class="{ 'otso-config-active': config.status === 'Active' }"
                         >
@@ -194,23 +207,19 @@ function submit() {
                                     >Edit</v-btn
                                 >
                             </td>
-                        </tr>
-                        <tr v-if="!configs.data.length">
-                            <td colspan="9">
-                                <v-sheet class="py-10 px-4 text-center text-medium-emphasis">
-                                    <v-icon icon="mdi-tune-variant" size="32" />
-                                    <h3 class="text-title-medium mt-3 mb-1">
-                                        No configurations yet
-                                    </h3>
-                                    <p>
-                                        Create a configuration to set up bet amounts and prizes for
-                                        new games.
-                                    </p>
-                                </v-sheet>
-                            </td>
-                        </tr>
-                    </tbody>
-                </v-table>
+                        </tr></template
+                    >
+                    <template #no-data>
+                        <v-sheet class="py-10 px-4 text-center text-medium-emphasis">
+                            <v-icon icon="mdi-tune-variant" size="32" />
+                            <h3 class="text-title-medium mt-3 mb-1">No configurations yet</h3>
+                            <p>
+                                Create a configuration to set up bet amounts and prizes for new
+                                games.
+                            </p>
+                        </v-sheet>
+                    </template>
+                </AdminDataTable>
                 <EndingPager :page="configs" selectable />
             </v-card>
             <p class="d-flex align-start ga-2 mt-4 text-body-small text-medium-emphasis">

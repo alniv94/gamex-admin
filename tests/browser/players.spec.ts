@@ -85,7 +85,7 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     const withdrawalFilter = page.getByRole('dialog');
     await withdrawalFilter.getByLabel('Date From', { exact: true }).fill('2026-10-16');
     await withdrawalFilter.getByLabel('Date To', { exact: true }).fill('2026-10-16');
-    await withdrawalFilter.getByRole('button', { name: 'Filter', exact: true }).click();
+    await withdrawalFilter.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await expect(withdrawalFilter).not.toBeVisible();
     await expect(page.locator('tbody tr')).toHaveCount(1);
     await expect(page.getByRole('cell', { name: /Oct 16, 2026/ })).toBeVisible();
@@ -103,10 +103,10 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     await page.getByRole('button', { name: 'Filter withdrawal accounts', exact: true }).click();
     await withdrawalFilter.getByLabel('Date From', { exact: true }).fill('2026-10-17');
     await withdrawalFilter.getByLabel('Date To', { exact: true }).fill('2026-10-17');
-    await withdrawalFilter.getByRole('button', { name: 'Filter', exact: true }).click();
+    await withdrawalFilter.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await expect(page.getByRole('cell', { name: 'No data available', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Filter withdrawal accounts', exact: true }).click();
-    await withdrawalFilter.getByRole('button', { name: 'Reset', exact: true }).click();
+    await withdrawalFilter.getByRole('button', { name: 'Reset filters', exact: true }).click();
     await expect(page.locator('tbody tr')).toHaveCount(3);
     await withdrawalSearch.fill('No matching withdrawal account');
     await expect(page.getByRole('cell', { name: 'No data available', exact: true })).toBeVisible();
@@ -132,7 +132,8 @@ test('player list, filters, export, verification, controls, funds and logs at ea
     await expect(page.getByText('Other Details', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     const downloadEvent = page.waitForEvent('download');
-    await page.getByRole('link', { name: 'Export players to CSV' }).click();
+    await page.getByRole('button', { name: 'Export data', exact: true }).click();
+    await page.getByRole('link', { name: 'All matching players (CSV)', exact: true }).click();
     const download = await downloadEvent;
     expect(download.suggestedFilename()).toMatch(/players-list-report-.*\.csv$/);
     expect(readFileSync((await download.path())!, 'utf8')).toContain(

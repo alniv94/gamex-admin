@@ -188,7 +188,9 @@ function save() {
                                             >{{ group.total }} cards</v-chip
                                         >
                                     </div>
-                                    <v-table density="compact" class="ending-preset-table"
+                                    <v-table
+                                        class="admin-table ending-preset-table"
+                                        density="compact"
                                         ><thead>
                                             <tr>
                                                 <th>Bet amount</th>

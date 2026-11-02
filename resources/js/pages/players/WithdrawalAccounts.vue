@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { show, withdrawalAccounts } from '@/actions/App/Http/Controllers/PlayerController';
 import { router, usePage } from '@inertiajs/vue3';
 import { onBeforeUnmount, reactive, ref, watch } from 'vue';
@@ -78,6 +83,7 @@ function applyFilters() {
     visit();
 }
 function resetFilters() {
+    form.search = '';
     form.date_from = '';
     form.date_to = '';
     visit();
@@ -99,43 +105,49 @@ const headers = [
     { title: 'Date Created', key: 'created_at' },
 ];
 onBeforeUnmount(() => clearTimeout(timer));
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['search', 'date_range'],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    resetFilters,
+);
 </script>
 
 <template>
     <PlayerShell title="Player Withdrawal Account">
         <v-card>
-            <div class="players-toolbar">
-                <v-btn
-                    icon="mdi-cached"
-                    variant="text"
-                    color="secondary"
-                    aria-label="Refresh withdrawal accounts"
-                    title="Refresh"
-                    :loading="loading"
-                    @click="visit(accounts.current_page)"
-                />
-                <div class="players-search-controls">
-                    <v-text-field
-                        v-model="form.search"
-                        placeholder="Search"
-                        aria-label="Search withdrawal accounts"
-                        hide-details
-                        clearable
-                        maxlength="100"
-                        @update:model-value="search"
-                        @keyup.enter="visit()"
-                    />
-                    <v-btn
-                        icon="mdi-filter-variant"
-                        variant="text"
-                        color="secondary"
-                        aria-label="Filter withdrawal accounts"
-                        title="Filter"
-                        :disabled="loading"
-                        @click="openFilters"
-                    />
-                </div>
-            </div>
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="accounts.total"
+                v-model="form.search"
+                search-label="Search withdrawal accounts"
+                refresh-label="Refresh withdrawal accounts"
+                :exports="[
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems(
+                                'players-withdrawalaccounts.csv',
+                                accounts.data,
+                                headers,
+                            ),
+                    },
+                ]"
+                @refresh="visit(accounts.current_page)"
+                @search="search"
+                :loading="loading"
+                filterable
+                @filter="openFilters"
+                filter-label="Filter withdrawal accounts"
+            >
+            </AdminTableToolbar>
             <v-progress-linear v-if="loading" indeterminate color="primary" height="2" />
             <v-divider />
             <v-alert
@@ -146,8 +158,15 @@ onBeforeUnmount(() => clearTimeout(timer));
                 role="alert"
                 >{{ Object.values(page.props.errors)[0] }}</v-alert
             >
-            <v-table class="players-table" :aria-busy="loading">
-                <thead>
+            <AdminDataTable
+                :aria-busy="loading"
+                :headers="headers"
+                :items="accounts.data"
+                server
+                :toolbar="false"
+                title="Withdrawal accounts"
+            >
+                <template #headers>
                     <tr>
                         <th
                             v-for="header in headers"
@@ -179,9 +198,9 @@ onBeforeUnmount(() => clearTimeout(timer));
                             <template v-else>{{ header.title }}</template>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="account in accounts.data" :key="account.id">
+                </template>
+                <template #item="{ item: account }"
+                    ><tr :key="account.id">
                         <td>
                             <v-btn
                                 :href="account.player_id ? show.url(account.player_id) : undefined"
@@ -200,52 +219,39 @@ onBeforeUnmount(() => clearTimeout(timer));
                         <td>{{ account.account_name || '-' }}</td>
                         <td><PlayerStatus :status="account.is_verified" /></td>
                         <td>{{ playerDate(account.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!accounts.data.length">
-                        <td colspan="6" class="text-center text-medium-emphasis py-8">
-                            No data available
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No data available </template>
+            </AdminDataTable>
             <EndingPager :page="accounts" :page-sizes="[5, 10, 15, 20, 25]" selectable />
         </v-card>
-        <v-dialog v-model="filterOpen" max-width="400" :persistent="loading" class="players-dialog">
-            <v-card class="pa-4 pa-md-6">
-                <h2 class="mb-4">Filter</h2>
-                <form @submit.prevent="applyFilters">
-                    <v-text-field
-                        v-model="draft.date_from"
-                        type="date"
-                        label="Date From"
-                        prepend-icon="mdi-calendar"
-                        :min="firstAccountDate || undefined"
-                        :max="draft.date_to || today"
-                        required
-                        class="mb-4"
-                    />
-                    <v-text-field
-                        v-model="draft.date_to"
-                        type="date"
-                        label="Date To"
-                        prepend-icon="mdi-calendar"
-                        :min="draft.date_from || firstAccountDate || undefined"
-                        :max="today"
-                        required
-                        class="mb-4"
-                        :error-messages="filterError"
-                    />
-                    <div class="d-flex justify-end flex-wrap ga-2">
-                        <v-btn variant="text" :disabled="loading" @click="resetFilters"
-                            >Reset</v-btn
-                        >
-                        <v-btn variant="text" :disabled="loading" @click="filterOpen = false"
-                            >Cancel</v-btn
-                        >
-                        <v-btn type="submit" color="primary" :loading="loading">Filter</v-btn>
-                    </div>
-                </form>
-            </v-card>
-        </v-dialog>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-text-field
+                v-model="draft.date_from"
+                type="date"
+                label="Date From"
+                prepend-icon="mdi-calendar"
+                :min="firstAccountDate || undefined"
+                :max="draft.date_to || today"
+                required
+                class="mb-4"
+            />
+            <v-text-field
+                v-model="draft.date_to"
+                type="date"
+                label="Date To"
+                prepend-icon="mdi-calendar"
+                :min="draft.date_from || firstAccountDate || undefined"
+                :max="today"
+                required
+                class="mb-4"
+                :error-messages="filterError"
+            />
+        </AdminFilterDialog>
     </PlayerShell>
 </template>

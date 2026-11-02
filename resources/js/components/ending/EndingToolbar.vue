@@ -1,54 +1,64 @@
 <script setup lang="ts">
-const search = defineModel<string>({ default: '' });
-defineProps<{ createLabel?: string; disabled?: boolean; exportable?: boolean; title?: string }>();
-defineEmits<{ create: []; refresh: []; search: []; export: [] }>();
+import AdminTableToolbar from '../AdminTableToolbar.vue';
+import type { ActiveTableFilter } from '@/composables/useTableFilters';
+const search = defineModel<string | null>({ default: '' });
+defineProps<{
+    createLabel?: string;
+    disabled?: boolean;
+    exportable?: boolean;
+    title?: string;
+    total?: number;
+    exportLabel?: string;
+    filterable?: boolean;
+    filterLabel?: string;
+    filtersOpen?: boolean;
+    activeFilters?: ActiveTableFilter[];
+}>();
+defineEmits<{
+    create: [];
+    refresh: [];
+    search: [];
+    export: [];
+    filter: [];
+    removeFilter: [key: string];
+    resetFilters: [];
+}>();
 </script>
 
 <template>
-    <div class="ending-toolbar">
-        <div class="d-flex align-center ga-1">
-            <h2 v-if="title" class="text-subtitle-1 font-weight-bold mr-2">{{ title }}</h2>
+    <AdminTableToolbar
+        v-model="search"
+        :title="title"
+        :total="total"
+        :filterable="filterable"
+        :filter-label="filterLabel"
+        :filters-open="filtersOpen"
+        :active-filters="activeFilters"
+        :exports="
+            exportable
+                ? [{ title: exportLabel || 'Current page (CSV)', action: () => $emit('export') }]
+                : []
+        "
+        @refresh="$emit('refresh')"
+        @search="$emit('search')"
+        @filter="$emit('filter')"
+        @remove-filter="$emit('removeFilter', $event)"
+        @reset-filters="$emit('resetFilters')"
+    >
+        <template #actions>
             <v-btn
                 v-if="createLabel"
-                icon="mdi-plus-box-outline"
+                prepend-icon="mdi-plus"
                 color="primary"
-                variant="text"
+                variant="flat"
                 size="small"
                 :aria-label="createLabel"
                 :title="createLabel"
                 :disabled="disabled"
                 @click="$emit('create')"
-            />
-            <v-btn
-                icon="mdi-sync"
-                variant="text"
-                size="small"
-                aria-label="Refresh"
-                title="Refresh"
-                @click="$emit('refresh')"
-            />
-            <v-btn
-                v-if="exportable"
-                icon="mdi-file-export-outline"
-                variant="text"
-                size="small"
-                aria-label="Export current page"
-                title="Export current page"
-                @click="$emit('export')"
-            />
-            <slot />
-        </div>
-        <v-text-field
-            v-model="search"
-            label="Search"
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="compact"
-            hide-details
-            clearable
-            class="ending-search"
-            @update:model-value="$emit('search')"
-            @keyup.enter="$emit('search')"
-        />
-    </div>
+                >{{ createLabel }}</v-btn
+            >
+        </template>
+        <slot />
+    </AdminTableToolbar>
 </template>

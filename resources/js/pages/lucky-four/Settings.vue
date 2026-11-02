@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { updateSettings } from '@/actions/App/Http/Controllers/LuckyFourController';
 import LuckyFourShell from '@/components/lucky-four/LuckyFourShell.vue';
@@ -61,24 +62,31 @@ function save() {
         >
         <v-card
             ><v-card-title>Settings History</v-card-title
-            ><v-table class="ending-table"
-                ><thead>
+            ><AdminDataTable
+                :headers="[
+                    { title: 'Changed at', key: 'created_at' },
+                    ...prizeFields.map((field) => ({ title: field.label, key: field.key })),
+                ]"
+                :items="logs.data"
+                server
+                :toolbar="true"
+                title="Settings history"
+            >
+                <template #headers>
                     <tr>
                         <th>Changed at</th>
                         <th v-for="field in prizeFields" :key="field.key">{{ field.label }}</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="log in logs.data" :key="log.id">
+                </template>
+                <template #item="{ item: log }"
+                    ><tr :key="log.id">
                         <td>{{ displayDate(log.created_at ?? null) }}</td>
                         <td v-for="field in prizeFields" :key="field.key">
                             {{ money(log[field.key]) }}
                         </td>
-                    </tr>
-                    <tr v-if="!logs.data.length">
-                        <td colspan="6" class="text-center pa-5">No settings changes recorded.</td>
-                    </tr>
-                </tbody></v-table
+                    </tr></template
+                >
+                <template #no-data>No settings changes recorded.</template> </AdminDataTable
             ><EndingPager :page="logs"
         /></v-card>
     </LuckyFourShell>

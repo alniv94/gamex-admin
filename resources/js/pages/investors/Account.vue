@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminDataTable from '@/components/AdminDataTable.vue';
+import type { DataTableHeader } from 'vuetify';
 import {
     index,
     show,
@@ -81,6 +83,35 @@ function saveSub() {
         },
     });
 }
+
+const tableHeaders: DataTableHeader<Investor>[] = [
+    { title: 'Name', key: 'first_name', value: investorName, sortable: true },
+    { title: 'Role', key: 'investor_type_id', sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Commission', key: 'commission', sortable: true },
+    { title: 'Wallet', key: 'wallet', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+];
+const tableHeaders2: DataTableHeader[] = [
+    { title: 'Name', key: 'name', sortable: true },
+    { title: 'Type', key: 'investor_sub_type_id', sortable: true },
+    { title: 'Commission', key: 'commission', sortable: true },
+];
+const tableHeaders3: DataTableHeader<SubAccount>[] = [
+    { title: 'Name', key: 'first_name', value: investorName, sortable: true },
+    { title: 'Mobile number', key: 'mobile_number', sortable: true },
+    { title: 'Status', key: 'status', sortable: true },
+    { title: 'Created', key: 'created_at', sortable: true },
+    { title: 'Action', key: 'actions', sortable: false },
+];
+const tableHeaders4: DataTableHeader[] = [
+    { title: 'Settlement', key: 'id', sortable: true },
+    { title: 'Amount', key: 'amount', sortable: true },
+    { title: 'Payment method', key: 'mode_of_payment', sortable: true },
+    { title: 'Reference', key: 'reference', sortable: true },
+    { title: 'Remarks', key: 'remarks', sortable: true },
+    { title: 'Processed', key: 'processed_at', sortable: true },
+];
 </script>
 
 <template>
@@ -151,19 +182,14 @@ function saveSub() {
             </v-card-text>
         </v-card>
         <v-card title="Agent Hierarchy" class="mb-5">
-            <v-table class="players-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Mobile number</th>
-                        <th>Commission</th>
-                        <th>Wallet</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="child in children" :key="child.id">
+            <AdminDataTable
+                :headers="tableHeaders"
+                :items="children"
+                :toolbar="true"
+                title="Accounts"
+            >
+                <template #item="{ item: child }"
+                    ><tr :key="child.id">
                         <td>
                             <Link :href="show(child.id)">{{ investorName(child) }}</Link>
                         </td>
@@ -172,24 +198,28 @@ function saveSub() {
                         <td>{{ child.commission }}%</td>
                         <td>{{ investorMoney(child.wallet) }}</td>
                         <td>{{ child.status }}</td>
-                    </tr>
-                    <tr v-if="!children.length">
-                        <td colspan="6" class="pa-6 text-center">No direct agents.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No direct agents.</template>
+            </AdminDataTable>
         </v-card>
         <v-card title="Players" class="mb-5">
-            <v-table class="players-table">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders2"
+                :items="players.data"
+                server
+                :toolbar="true"
+                title="Players"
+            >
+                <template #headers>
                     <tr>
                         <th>Name</th>
                         <th>Type</th>
                         <th>Commission</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="player in players.data" :key="player.id">
+                </template>
+                <template #item="{ item: player }"
+                    ><tr :key="player.id">
                         <td>{{ player.name || 'Legacy player #' + player.legacy_player_id }}</td>
                         <td>
                             {{
@@ -199,12 +229,10 @@ function saveSub() {
                             }}
                         </td>
                         <td>{{ player.commission }}%</td>
-                    </tr>
-                    <tr v-if="!players.data.length">
-                        <td colspan="3" class="pa-6 text-center">No direct players.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No direct players.</template>
+            </AdminDataTable>
             <EndingPager :page="players" />
         </v-card>
         <v-card class="mb-5">
@@ -217,18 +245,14 @@ function saveSub() {
                     >Add Sub-account</v-btn
                 ></v-card-title
             >
-            <v-table class="players-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Mobile number</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="sub in subAccounts" :key="sub.id">
+            <AdminDataTable
+                :headers="tableHeaders3"
+                :items="subAccounts"
+                :toolbar="true"
+                title="Sub accounts"
+            >
+                <template #item="{ item: sub }"
+                    ><tr :key="sub.id">
                         <td>{{ investorName(sub) }}</td>
                         <td>+63{{ sub.mobile_number }}</td>
                         <td>{{ sub.status }}</td>
@@ -240,17 +264,20 @@ function saveSub() {
                                 aria-label="Edit sub-account"
                                 @click="editSub(sub)"
                             />
-                        </td>
-                    </tr>
-                    <tr v-if="!subAccounts.length">
-                        <td colspan="5" class="pa-6 text-center">No sub-accounts.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                        </td></tr
+                ></template>
+                <template #no-data>No sub-accounts.</template>
+            </AdminDataTable>
         </v-card>
         <v-card title="Settlement History">
-            <v-table class="players-table">
-                <thead>
+            <AdminDataTable
+                :headers="tableHeaders4"
+                :items="settlements.data"
+                server
+                :toolbar="true"
+                title="Settlements"
+            >
+                <template #headers>
                     <tr>
                         <th>Settlement</th>
                         <th>Amount</th>
@@ -259,9 +286,9 @@ function saveSub() {
                         <th>Remarks</th>
                         <th>Processed</th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="entry in settlements.data" :key="entry.kind + entry.id">
+                </template>
+                <template #item="{ item: entry }"
+                    ><tr :key="entry.kind + entry.id">
                         <td>
                             {{ entry.kind === 'Payout' ? 'PS' : 'CS'
                             }}{{ String(entry.id).padStart(8, '0') }}
@@ -271,12 +298,10 @@ function saveSub() {
                         <td>{{ entry.reference }}</td>
                         <td>{{ entry.remarks || '—' }}</td>
                         <td>{{ playerDate(entry.processed_at) }}</td>
-                    </tr>
-                    <tr v-if="!settlements.data.length">
-                        <td colspan="6" class="pa-6 text-center">No settlements recorded.</td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data>No settlements recorded.</template>
+            </AdminDataTable>
             <EndingPager :page="settlements" />
         </v-card>
         <v-dialog v-model="editOpen" max-width="820" scrollable>

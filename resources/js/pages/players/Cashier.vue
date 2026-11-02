@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import { usePermissions } from '@/composables/usePermissions';
 import {
     evaluate,
@@ -254,14 +259,50 @@ onBeforeUnmount(() => {
     clearTimeout(playerTimer);
     ++playerSearchVersion;
 });
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => ['search', { key: 'filter', defaultValue: 'Pending' }, 'date_range'],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    undefined,
+);
 </script>
 
 <template>
     <PlayerShell :title="title">
         <v-card>
-            <div class="players-toolbar">
-                <div class="d-flex align-center">
-                    <v-btn
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="records.total"
+                v-model="form.search"
+                :search-label="`Search ${title}`"
+                :refresh-label="`Refresh ${title}`"
+                :exports="[
+                    {
+                        title: 'All matching transactions (CSV)',
+                        href: exportCashier.url(kind, { query: { ...form } }),
+                    },
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('players-cashier.csv', records.data, headers),
+                    },
+                ]"
+                @refresh="visit(records.current_page)"
+                @search="search"
+                :loading="loading"
+                filterable
+                @filter="openFilters"
+                :filter-label="`Filter ${title}`"
+            >
+                <template #actions
+                    ><v-btn
                         v-if="canManual"
                         icon="mdi-cash-plus"
                         variant="text"
@@ -269,48 +310,8 @@ onBeforeUnmount(() => {
                         :aria-label="`Manual ${title}`"
                         :title="`Manual ${title}`"
                         @click="openManual"
-                    />
-                    <v-btn
-                        icon="mdi-cached"
-                        variant="text"
-                        color="secondary"
-                        :aria-label="`Refresh ${title}`"
-                        title="Refresh"
-                        :loading="loading"
-                        @click="visit(records.current_page)"
-                    />
-                    <v-btn
-                        :href="exportCashier.url(kind, { query: { ...form } })"
-                        icon="mdi-file-delimited-outline"
-                        variant="text"
-                        color="secondary"
-                        :aria-label="`Export ${title}`"
-                        title="Export CSV"
-                    />
-                </div>
-                <div class="players-search-controls">
-                    <v-text-field
-                        v-model="form.search"
-                        placeholder="Search"
-                        :aria-label="`Search ${title}`"
-                        prepend-inner-icon="mdi-magnify"
-                        clearable
-                        maxlength="100"
-                        hide-details
-                        @update:model-value="search"
-                        @keyup.enter="visit()"
-                    />
-                    <v-btn
-                        icon="mdi-filter-variant"
-                        variant="text"
-                        color="secondary"
-                        :aria-label="`Filter ${title}`"
-                        title="Filter"
-                        :disabled="loading"
-                        @click="openFilters"
-                    />
-                </div>
-            </div>
+                /></template>
+            </AdminTableToolbar>
             <v-progress-linear v-if="loading" indeterminate color="primary" height="2" />
             <v-divider />
             <v-alert
@@ -321,8 +322,15 @@ onBeforeUnmount(() => {
                 role="alert"
                 >{{ Object.values(page.props.errors)[0] }}</v-alert
             >
-            <v-table class="players-table" :aria-busy="loading">
-                <thead>
+            <AdminDataTable
+                :aria-busy="loading"
+                :headers="headers"
+                :items="records.data"
+                server
+                :toolbar="false"
+                title="Cashier"
+            >
+                <template #headers>
                     <tr>
                         <th
                             v-for="header in headers"
@@ -354,9 +362,9 @@ onBeforeUnmount(() => {
                             <template v-else>{{ header.title }}</template>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="row in records.data" :key="row.id">
+                </template>
+                <template #item="{ item: row }"
+                    ><tr :key="row.id">
                         <td>
                             <v-btn
                                 icon="mdi-account-details"
@@ -384,78 +392,48 @@ onBeforeUnmount(() => {
                         <td>{{ row.remarks || '' }}</td>
                         <td><PlayerStatus :status="row.status" /></td>
                         <td>{{ playerDate(row.created_at) }}</td>
-                    </tr>
-                    <tr v-if="!records.data.length">
-                        <td :colspan="headers.length" class="text-center text-medium-emphasis py-8">
-                            No data available
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No data available </template>
+            </AdminDataTable>
             <EndingPager :page="records" :page-sizes="[5, 10, 15, 20, 25, 50, 100]" selectable />
         </v-card>
-        <v-dialog v-model="filterOpen" max-width="420" :persistent="loading" class="players-dialog">
-            <v-card class="pa-6"
-                ><h2 class="mb-4">Filter {{ title }}</h2>
-                <form @submit.prevent="applyFilters">
-                    <v-select
-                        v-model="draft.filter"
-                        :items="[
-                            'All',
-                            'Pending',
-                            'Verified',
-                            'Rejected',
-                            'Approved',
-                            'Disapproved',
-                        ]"
-                        label="Status"
-                        class="mb-4"
-                    />
-                    <p class="text-caption mb-4">
-                        {{
-                            ['All', 'Pending'].includes(draft.filter)
-                                ? 'Filter by requested date.'
-                                : 'Filter by evaluated date.'
-                        }}
-                    </p>
-                    <v-text-field
-                        v-model="draft.date_from"
-                        type="date"
-                        label="Date From"
-                        :max="draft.date_to || today"
-                        class="mb-4"
-                    />
-                    <v-text-field
-                        v-model="draft.date_to"
-                        type="date"
-                        label="Date To"
-                        :min="draft.date_from || undefined"
-                        :max="today"
-                        :error-messages="filterError"
-                        class="mb-4"
-                    />
-                    <div class="d-flex justify-end ga-2">
-                        <v-btn
-                            variant="text"
-                            :disabled="loading"
-                            @click="
-                                Object.assign(draft, {
-                                    filter: 'Pending',
-                                    date_from: '',
-                                    date_to: '',
-                                });
-                                applyFilters();
-                            "
-                            >Reset</v-btn
-                        >
-                        <v-btn variant="text" :disabled="loading" @click="filterOpen = false"
-                            >Cancel</v-btn
-                        >
-                        <v-btn type="submit" color="primary" :loading="loading">Filter</v-btn>
-                    </div>
-                </form>
-            </v-card>
-        </v-dialog>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+        >
+            <v-select
+                v-model="draft.filter"
+                :items="['All', 'Pending', 'Verified', 'Rejected', 'Approved', 'Disapproved']"
+                label="Status"
+                class="mb-4"
+            />
+            <p class="text-caption mb-4">
+                {{
+                    ['All', 'Pending'].includes(draft.filter)
+                        ? 'Filter by requested date.'
+                        : 'Filter by evaluated date.'
+                }}
+            </p>
+            <v-text-field
+                v-model="draft.date_from"
+                type="date"
+                label="Date From"
+                :max="draft.date_to || today"
+                class="mb-4"
+            />
+            <v-text-field
+                v-model="draft.date_to"
+                type="date"
+                label="Date To"
+                :min="draft.date_from || undefined"
+                :max="today"
+                :error-messages="filterError"
+                class="mb-4"
+            />
+        </AdminFilterDialog>
         <v-dialog
             :model-value="!!selected"
             max-width="620"
@@ -483,7 +461,7 @@ onBeforeUnmount(() => {
                         style="max-width: 100%; max-height: 360px; object-fit: contain"
                     />
                 </a>
-                <v-table
+                <v-table class="admin-table"
                     ><tbody>
                         <tr>
                             <td>Player</td>

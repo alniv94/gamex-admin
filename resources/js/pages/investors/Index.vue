@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import { useTableFilters } from '@/composables/useTableFilters';
+import AdminFilterDialog from '@/components/AdminFilterDialog.vue';
+import AdminTableToolbar from '@/components/AdminTableToolbar.vue';
+import { exportTableItems } from '@/composables/useTableExport';
+import AdminDataTable from '@/components/AdminDataTable.vue';
 import {
     index,
     settlement,
@@ -43,7 +48,7 @@ const form = reactive({
     sort: '',
     direction: 'asc',
 });
-const draft = reactive({ status: 'All', date_from: '', date_to: '' });
+const draft = reactive({ status: 'All', date_from: '', date_to: '', link_type: 'New' });
 const loading = ref(false);
 const filterOpen = ref(false);
 const editorOpen = ref(false);
@@ -158,7 +163,12 @@ function sort(key: string) {
     visit();
 }
 function openFilters() {
-    Object.assign(draft, { status: form.status, date_from: form.date_from, date_to: form.date_to });
+    Object.assign(draft, {
+        status: form.status,
+        date_from: form.date_from,
+        date_to: form.date_to,
+        link_type: form.link_type,
+    });
     filterOpen.value = true;
 }
 function applyFilters() {
@@ -166,7 +176,9 @@ function applyFilters() {
     visit();
 }
 function resetFilters() {
-    Object.assign(draft, { status: 'All', date_from: '', date_to: '' });
+    form.search = '';
+    form.link_type = 'New';
+    Object.assign(draft, { status: 'All', date_from: '', date_to: '', link_type: 'New' });
     applyFilters();
 }
 function edit(row?: InvestorRow) {
@@ -196,6 +208,30 @@ function coveredDate(value: string | null | undefined) {
     }).format(new Date(value.includes('T') ? value : value.replace(' ', 'T') + 'Z'));
 }
 onBeforeUnmount(() => clearTimeout(searchTimer));
+const exportHeaders = computed(() =>
+    headers.value.map((header) =>
+        header.key === 'name'
+            ? { ...header, value: (row: InvestorRow) => row.name || investorName(row) }
+            : header,
+    ),
+);
+
+const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
+    () => props.filters,
+    () => [
+        'search',
+        'status',
+        'date_range',
+        ...(referrals.value
+            ? [{ key: 'link_type', ignore: [], removable: props.filters.link_type === 'Old' }]
+            : []),
+    ],
+    (changes) => {
+        Object.assign(form, changes);
+        visit();
+    },
+    resetFilters,
+);
 </script>
 
 <template>
@@ -214,9 +250,35 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
         >
         <v-card class="investor-card" :class="{ 'investor-commission-card': commission }">
             <h1 v-if="commission" class="investor-commission-title">Commission</h1>
-            <div class="investor-toolbar" :class="{ 'investor-referrals-toolbar': referrals }">
-                <div class="d-flex align-center">
-                    <v-btn
+            <AdminTableToolbar
+                :filters-open="filterOpen"
+                :active-filters="activeFilters"
+                @remove-filter="removeFilter"
+                @reset-filters="resetTableFilters"
+                :total="records.total"
+                v-model="form.search"
+                search-label="Search investors"
+                refresh-label="Refresh investors"
+                :exports="[
+                    {
+                        title: 'All matching records (CSV)',
+                        href: exportMethod.url(section, { query: { ...form } }),
+                    },
+                    {
+                        title: 'Current page (CSV)',
+                        action: () =>
+                            exportTableItems('investors.csv', records.data, exportHeaders),
+                    },
+                ]"
+                @refresh="visit"
+                @search="search"
+                :loading="loading"
+                filterable
+                @filter="openFilters"
+                filter-label="Filter investors"
+            >
+                <template #actions
+                    ><v-btn
                         v-if="isList && can('Investors')"
                         icon="mdi-plus"
                         variant="text"
@@ -225,67 +287,19 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
                         :disabled="!ready"
                         @click="edit()"
                     />
-                    <v-btn
-                        v-if="isList"
-                        icon="mdi-refresh"
-                        variant="text"
-                        aria-label="Refresh investors"
-                        title="Refresh"
-                        :loading="loading"
-                        @click="visit"
-                    />
-                </div>
-                <div class="investor-search-controls">
-                    <v-btn
-                        v-if="special"
-                        :href="exportMethod.url(section, { query: { ...form } })"
-                        icon="mdi-download"
-                        variant="text"
-                        aria-label="Export CSV"
-                        title="Export CSV"
-                    />
-                    <v-select
-                        v-if="referrals"
-                        v-model="form.link_type"
-                        :items="['Old', 'New']"
-                        aria-label="Link type"
-                        variant="outlined"
-                        density="compact"
-                        hide-details
-                        class="investor-link-type"
-                        @update:model-value="visit"
-                    />
-                    <v-text-field
-                        v-model="form.search"
-                        placeholder="Search"
-                        aria-label="Search investors"
-                        variant="outlined"
-                        density="compact"
-                        hide-details
-                        clearable
-                        class="investor-search"
-                        @update:model-value="search"
-                        @keyup.enter="visit"
-                    />
-                    <v-btn
-                        v-if="!master && !referrals"
-                        icon="mdi-filter-variant"
-                        variant="text"
-                        aria-label="Filter investors"
-                        title="Filter"
-                        :disabled="loading"
-                        @click="openFilters"
-                    />
-                </div>
-            </div>
+                </template>
+            </AdminTableToolbar>
             <v-progress-linear v-if="loading" indeterminate height="2" />
             <v-divider v-if="!commission" />
-            <v-table
-                class="players-table investor-table"
-                :class="{ 'investor-referrals-table': referrals }"
+            <AdminDataTable
                 :aria-busy="loading"
+                :headers="headers"
+                :items="records.data"
+                server
+                :toolbar="false"
+                title="Investors"
             >
-                <thead>
+                <template #headers>
                     <tr>
                         <th
                             v-for="header in headers"
@@ -319,9 +333,9 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
                             <template v-else>{{ header.title }}</template>
                         </th>
                     </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="row in records.data" :key="row.id">
+                </template>
+                <template #item="{ item: row }"
+                    ><tr :key="row.id">
                         <td v-if="!master && !referrals" class="investor-actions">
                             <template v-if="isList">
                                 <v-btn
@@ -471,58 +485,54 @@ onBeforeUnmount(() => clearTimeout(searchTimer));
                             <td>{{ row.status }}</td>
                             <td>{{ playerDate(row.process_date) }}</td></template
                         >
-                    </tr>
-                    <tr v-if="!records.data.length">
-                        <td :colspan="headers.length" class="text-center pa-8">
-                            No records match these filters.
-                        </td>
-                    </tr>
-                </tbody>
-            </v-table>
+                    </tr></template
+                >
+                <template #no-data> No records match these filters. </template>
+            </AdminDataTable>
             <EndingPager :page="records" selectable />
         </v-card>
-        <v-dialog v-model="filterOpen" max-width="500">
-            <v-form @submit.prevent="applyFilters">
-                <v-card title="Filters">
-                    <v-card-text>
-                        <v-alert
-                            v-if="Object.keys(page.props.errors).length"
-                            type="error"
-                            variant="tonal"
-                            class="mb-4"
-                            role="alert"
-                            >{{ Object.values(page.props.errors)[0] }}</v-alert
-                        >
-                        <v-text-field
-                            v-model="draft.date_from"
-                            label="Date from"
-                            type="date"
-                            :error-messages="page.props.errors.date_from"
-                        />
-                        <v-text-field
-                            v-model="draft.date_to"
-                            label="Date to"
-                            type="date"
-                            :error-messages="page.props.errors.date_to"
-                        />
-                        <v-select
-                            v-if="!payouts && !commission"
-                            v-model="draft.status"
-                            label="Status"
-                            :items="statuses"
-                        />
-                    </v-card-text>
-                    <v-card-actions
-                        ><v-btn variant="text" @click="resetFilters">Reset</v-btn><v-spacer /><v-btn
-                            @click="filterOpen = false"
-                            >Cancel</v-btn
-                        ><v-btn type="submit" color="primary" variant="flat" :loading="loading"
-                            >Apply filters</v-btn
-                        ></v-card-actions
-                    >
-                </v-card>
-            </v-form>
-        </v-dialog>
+        <AdminFilterDialog
+            v-model="filterOpen"
+            :loading="loading"
+            @apply="applyFilters"
+            @reset="resetTableFilters"
+            ><v-select
+                v-if="referrals"
+                v-model="draft.link_type"
+                :items="['Old', 'New']"
+                aria-label="Link type"
+                variant="outlined"
+                density="compact"
+                hide-details
+                label="Link type"
+            />
+            <v-alert
+                v-if="Object.keys(page.props.errors).length"
+                type="error"
+                variant="tonal"
+                class="mb-4"
+                role="alert"
+                >{{ Object.values(page.props.errors)[0] }}</v-alert
+            >
+            <v-text-field
+                v-model="draft.date_from"
+                label="Date from"
+                type="date"
+                :error-messages="page.props.errors.date_from"
+            />
+            <v-text-field
+                v-model="draft.date_to"
+                label="Date to"
+                type="date"
+                :error-messages="page.props.errors.date_to"
+            />
+            <v-select
+                v-if="!payouts && !commission"
+                v-model="draft.status"
+                label="Status"
+                :items="statuses"
+            />
+        </AdminFilterDialog>
         <v-dialog v-model="editorOpen" max-width="820" scrollable>
             <InvestorForm
                 v-if="editorOpen"
