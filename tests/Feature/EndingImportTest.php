@@ -114,6 +114,17 @@ class EndingImportTest extends TestCase
         $this->assertDatabaseCount('ending_bets', 0);
     }
 
+    public function test_import_preserves_the_pagcor_ggr_rate_separately_from_the_general_percentage(): void
+    {
+        $this->source->exec("INSERT INTO ending_config (id, config_name, config_value) VALUES (6, 'GGR', '0.25'), (19, 'PAGCOR Percentage', '22.5')");
+
+        $this->artisan('legacy:ending', ['--execute' => true])->assertSuccessful();
+
+        $this->assertDatabaseHas('ending_config', ['id' => 6, 'config_name' => 'GGR', 'config_value' => '0.25']);
+        $this->assertDatabaseHas('ending_config', ['id' => 19, 'config_name' => 'PAGCOR Percentage', 'config_value' => '22.5']);
+        $this->artisan('legacy:ending', ['--verify' => true])->assertSuccessful();
+    }
+
     public function test_zero_date_archive_verifies_after_mysql_style_json_key_reordering(): void
     {
         $this->source->exec("UPDATE ending_games SET enabled_betting_at = '0000-00-00 00:00:00' WHERE id = 42");

@@ -6,6 +6,7 @@ import {
 } from '@/actions/App/Http/Controllers/AgentController';
 import EndingGameController from '@/actions/App/Http/Controllers/EndingGameController';
 import { index as endingReport } from '@/actions/App/Http/Controllers/EndingReportController';
+import { index as pagcorReport } from '@/actions/App/Http/Controllers/PagcorReportController';
 import {
     index as luckyFourGames,
     bets as luckyFourBets,
@@ -43,6 +44,7 @@ const openedGroups = ref([
     'players',
     'ending',
     'ending-reports',
+    'pagcor-reports',
     'otso',
     'lucky-four',
     'investors',
@@ -252,6 +254,14 @@ const navigationSections = computed(() =>
                     route: luckyFourSettings(),
                 },
             ].filter((item) => can(item.permission)),
+        },
+        {
+            value: 'pagcor-reports',
+            title: 'PAGCOR Reports',
+            icon: 'mdi-file-chart-outline',
+            items: (page.props.pagcorReportNavigation ?? [])
+                .map((item) => ({ ...item, route: pagcorReport(item.report) }))
+                .filter((item) => can(item.permission)),
         },
     ].filter((section) => section.items.length),
 );

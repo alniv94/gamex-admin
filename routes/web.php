@@ -8,12 +8,14 @@ use App\Http\Controllers\EndingReportController;
 use App\Http\Controllers\InvestorController;
 use App\Http\Controllers\LuckyFourController;
 use App\Http\Controllers\OtsoPanaloController;
+use App\Http\Controllers\PagcorReportController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerReportController;
 use App\Http\Controllers\SettingsRoleController;
 use App\Http\Controllers\SettingsUserController;
 use App\Services\Ending\EndingReports;
+use App\Services\Pagcor\PagcorReports;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +28,10 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/pagcor/reports/{report}', [PagcorReportController::class, 'index'])
+        ->whereIn('report', array_keys(PagcorReports::DEFINITIONS))->name('pagcor.reports.index');
+    Route::get('/pagcor/reports/{report}/export', [PagcorReportController::class, 'export'])
+        ->whereIn('report', array_keys(PagcorReports::DEFINITIONS))->middleware('throttle:10,1')->name('pagcor.reports.export');
     Route::get('/agents/list', [AgentController::class, 'index'])->name('agents.index');
     Route::get('/agents/cashin', [AgentController::class, 'cashins'])->name('agents.cashins');
     Route::get('/agents/players/search', [AgentController::class, 'candidates'])->middleware('throttle:30,1')->name('agents.candidates');

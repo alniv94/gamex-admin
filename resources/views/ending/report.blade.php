@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{{ $title }} — Ending Reports</title>
+    <title>{{ $title }} — {{ $group ?? 'Ending Reports' }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #182539; }
         h1 { font-size: 18px; }
@@ -14,8 +14,8 @@
     </style>
 </head>
 <body>
-    <h1>Ending Reports / {{ $title }}</h1>
-    <p>{{ $filters['date_from'] }} to {{ $filters['date_to'] }} · Philippine time · Page {{ $filters['page'] }} · {{ $filters['filter_by'] === 'scheduled' ? 'Scheduled date' : 'Activity date' }}
+    <h1>{{ $group ?? 'Ending Reports' }} / {{ $title }}</h1>
+    <p>{{ $filters['date_from'] }} to {{ $filters['date_to'] }} · Philippine time · Page {{ $filters['page'] }} · {{ ($filters['filter_by'] ?? 'scheduled') === 'scheduled' ? 'Scheduled date' : 'Activity date' }}
         @if($filters['search']) · Search: {{ $filters['search'] }} @endif
     </p>
     <table>

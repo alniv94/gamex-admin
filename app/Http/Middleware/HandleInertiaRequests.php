@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Ending\EndingReports;
+use App\Services\Pagcor\PagcorReports;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,6 +33,9 @@ class HandleInertiaRequests extends Middleware
             'csrf_token' => fn () => csrf_token(),
             'auth' => ['user' => fn () => $request->user()?->summary()],
             'endingReportNavigation' => fn () => collect(EndingReports::DEFINITIONS)->map(
+                fn (array $definition, string $report): array => ['report' => $report, 'title' => $definition[0], 'permission' => $definition[1], 'icon' => $definition[2]],
+            )->values()->all(),
+            'pagcorReportNavigation' => fn () => collect(PagcorReports::DEFINITIONS)->map(
                 fn (array $definition, string $report): array => ['report' => $report, 'title' => $definition[0], 'permission' => $definition[1], 'icon' => $definition[2]],
             )->values()->all(),
         ];

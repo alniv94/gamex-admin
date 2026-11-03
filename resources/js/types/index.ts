@@ -12,4 +12,5 @@ export interface AdminPageProps {
     auth: { user: AdminUser | null };
     csrf_token: string;
     endingReportNavigation: { report: string; title: string; permission: string; icon: string }[];
+    pagcorReportNavigation: { report: string; title: string; permission: string; icon: string }[];
 }

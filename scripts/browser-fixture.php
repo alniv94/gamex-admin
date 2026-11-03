@@ -4,6 +4,7 @@ use App\Models\AdminProfile;
 use App\Models\User;
 use App\Services\Auth\AdminPermissions;
 use App\Services\Legacy\OtsoPanaloImport;
+use App\Services\Pagcor\PagcorReports;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
@@ -51,6 +52,7 @@ Schema::table('player_wallet_transaction_types', function (Blueprint $table): vo
 Schema::table('player_wallet_transactions', function (Blueprint $table): void {
     $table->unsignedBigInteger('player_wallet_id')->nullable();
     $table->integer('reference_id')->default(0);
+    $table->unsignedBigInteger('outlet_id')->nullable();
 });
 DB::table('player_wallet_transaction_types')->insert(['id' => 2, 'wallet_transaction_type' => 'Withdraw']);
 DB::table('admin_player_cashier_imports')->insert(['source' => config('players.legacy_source'), 'report' => '{}', 'verified_at' => now()]);
@@ -93,6 +95,7 @@ foreach (['1st', '2nd', '3rd', '4th'] as $quarter) {
     DB::table('ending_config')->insert(['config_name' => "Per Quarter Card - $quarter Quarter Prize Percent", 'config_value' => $quarter === '4th' ? '40' : '10']);
 }
 DB::table('admin_ending_imports')->insert(['source' => config('ending.legacy_source'), 'report' => '{}', 'verified_at' => now()]);
+DB::table('ending_config')->insert(['config_name' => 'GGR', 'config_value' => '0.25']);
 for ($i = 1; $i <= 6; $i++) {
     $user = User::factory()->create([
         'name' => 'Test Administrator '.$i, 'mobile_number' => '+6391'.$i.'1234567',
@@ -104,6 +107,9 @@ for ($i = 1; $i <= 6; $i++) {
     ]);
     foreach (['Player List', 'Player Verify', 'Player Settings', 'Ending Games', 'Ending Teams', 'Ending Leagues', 'Ending Config', 'Ending Game Create', 'Ending Game Settings', 'Ending Game Bet/Cards Creation', 'Ending Game Result Creation', 'Ending Game Winners', 'Ending Game Winner Verification', 'Ending Game Winner Approval 1'] as $permission) {
         $user->givePermissionTo($permission);
+    }
+    foreach (array_unique(array_column(PagcorReports::DEFINITIONS, 1)) as $permission) {
+        $user->givePermissionTo(Permission::findOrCreate($permission, 'web'));
     }
     DB::table('ending_games')->insert(['id' => 100 + $i, 'team_a' => 1, 'team_b' => 2, 'schedule' => now()->subHour(), 'created_at' => now()]);
     DB::table('ending_bet_amounts')->insert(['id' => 200 + $i, 'game_id' => 100 + $i, 'bet_type_id' => 2, 'amount' => '15.00']);
