@@ -37,6 +37,17 @@ return [
 
     'mailers' => [
 
+        'sms' => [
+            'transport' => 'smtp',
+            'scheme' => 'smtp',
+            'host' => env('PLAYER_SMS_HOST', 'smtp.office365.com'),
+            'port' => (int) env('PLAYER_SMS_PORT', 587),
+            'username' => env('PLAYER_SMS_USERNAME'),
+            'password' => env('PLAYER_SMS_PASSWORD'),
+            'require_tls' => true,
+            'timeout' => 30,
+        ],
+
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),

@@ -15,6 +15,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerReportController;
 use App\Http\Controllers\SettingsOutletController;
 use App\Http\Controllers\SettingsRoleController;
+use App\Http\Controllers\SettingsSmsController;
 use App\Http\Controllers\SettingsUserController;
 use App\Services\Ending\EndingReports;
 use App\Services\Pagcor\PagcorReports;
@@ -91,6 +92,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/otso-panalo/games/{game}/import-bets', [OtsoPanaloController::class, 'importBets'])->whereNumber('game')->middleware('throttle:10,1')->name('otso.bets.import');
     Route::get('/otso-panalo/games/{game}/bets.pdf', [OtsoPanaloController::class, 'pdf'])->whereNumber('game')->middleware('throttle:10,1')->name('otso.bets.pdf');
     Route::get('/settings/users', [SettingsUserController::class, 'index'])->name('settings.users.index');
+    Route::get('/settings/sms', [SettingsSmsController::class, 'index'])->name('settings.sms.index');
+    Route::post('/settings/sms', [SettingsSmsController::class, 'store'])->middleware('throttle:3,1')->name('settings.sms.store');
     Route::get('/settings/outlets', [SettingsOutletController::class, 'index'])->name('settings.outlets.index');
     Route::get('/settings/outlets/barangays', [SettingsOutletController::class, 'barangays'])->name('settings.outlets.barangays');
     Route::post('/settings/outlets', [SettingsOutletController::class, 'store'])->name('settings.outlets.store');

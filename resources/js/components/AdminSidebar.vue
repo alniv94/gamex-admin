@@ -24,6 +24,7 @@ import {
 } from '@/actions/App/Http/Controllers/PlayerController';
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
 import { index as outletIndex } from '@/actions/App/Http/Controllers/SettingsOutletController';
+import { index as smsIndex } from '@/actions/App/Http/Controllers/SettingsSmsController';
 import { index as investorIndex } from '@/actions/App/Http/Controllers/InvestorController';
 import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
 import { index as promoAnalytics } from '@/actions/App/Http/Controllers/OtsoPromoAnalyticsController';
@@ -424,7 +425,7 @@ function expandGroup(group: string) {
                     </template>
                 </v-list-group>
                 <v-list-group
-                    v-if="canAny(['Users', 'Manage users and roles', 'Outlets'])"
+                    v-if="canAny(['Users', 'Manage users and roles', 'Outlets', 'SMS'])"
                     value="settings"
                     fluid
                 >
@@ -469,6 +470,15 @@ function expandGroup(group: string) {
                         icon="mdi-store-outline"
                         :href="outletIndex.url()"
                         :active="isActive(outletIndex.url())"
+                        :rail="rail"
+                        @click="closeOnMobile"
+                    />
+                    <AdminNavigationItem
+                        v-if="!rail && can('SMS')"
+                        title="SMS"
+                        icon="mdi-message-text-outline"
+                        :href="smsIndex.url()"
+                        :active="isActive(smsIndex.url())"
                         :rail="rail"
                         @click="closeOnMobile"
                     />
