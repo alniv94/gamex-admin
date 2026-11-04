@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Tests\Support\OtsoPromoFixtures;
 use Tests\Support\PlayerFixtures;
 
 require __DIR__.'/../vendor/autoload.php';
@@ -46,6 +47,29 @@ $playerFixture = new class
     }
 };
 $playerFixture->seed();
+$promoFixture = new class
+{
+    use OtsoPromoFixtures;
+
+    public function seed(): void
+    {
+        $this->promoEventsTable();
+        $at = now()->subDay()->utc()->startOfDay()->format('Y-m-d H:i:s');
+        $context = ['occurred_at' => $at, 'received_at' => $at];
+        $this->event('dialog_shown', $context);
+        $this->event('play_clicked', $context + ['duration_ms' => 2000]);
+        $this->event('game_page_viewed', $context);
+        $this->event('dialog_shown', $context + ['impression_id' => 'second', 'dialog_step' => 2]);
+        $this->event('dialog_closed', $context + ['impression_id' => 'second', 'dialog_step' => 2, 'duration_ms' => 4000]);
+        $this->event('tutorial_opened', $context + ['tutorial_id' => 'browser-tutorial']);
+        for ($slide = 1; $slide <= 5; $slide++) {
+            $this->event('tutorial_slide_viewed', $context + ['tutorial_id' => 'browser-tutorial', 'slide_index' => $slide]);
+        }
+        $this->event('tutorial_completed', $context + ['tutorial_id' => 'browser-tutorial', 'slide_index' => 5]);
+        $this->event('bet_blocked', $context + ['reason' => 'insufficient_tokens']);
+    }
+};
+$promoFixture->seed();
 Schema::table('player_wallet_transaction_types', function (Blueprint $table): void {
     $table->string('reference_table')->nullable();
 });

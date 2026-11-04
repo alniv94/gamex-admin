@@ -9,7 +9,7 @@ export default defineConfig({
     plugins: lazyPlugins(() => [
         laravel({ input: ['resources/css/app.css', 'resources/js/app.ts'], refresh: true }),
         wayfinder({ skipDatabase: true }),
-        inertia(),
+        inertia({ ssr: false }),
         vue({ template: { transformAssetUrls: { base: null, includeAbsolute: false } } }),
         vuetify({ autoImport: true }),
     ]),

@@ -27,6 +27,16 @@ return [
             'charset' => 'utf8mb4', 'collation' => 'utf8mb4_general_ci',
             'prefix' => '', 'strict' => true, 'timezone' => '+08:00',
         ],
+        'otso_analytics' => [
+            'driver' => 'mysql',
+            'host' => env('OTSO_ANALYTICS_DB_HOST', env('LEGACY_DB_HOST', '127.0.0.1')),
+            'port' => env('OTSO_ANALYTICS_DB_PORT', env('LEGACY_DB_PORT', '3306')),
+            'database' => env('OTSO_ANALYTICS_DB_DATABASE', env('LEGACY_DB_DATABASE', 'gamexsports')),
+            'username' => env('OTSO_ANALYTICS_DB_USERNAME', env('LEGACY_DB_USERNAME', 'gamexsports_legacy_reader')),
+            'password' => env('OTSO_ANALYTICS_DB_PASSWORD', env('LEGACY_DB_PASSWORD', '')),
+            'charset' => 'utf8mb4', 'collation' => 'utf8mb4_general_ci',
+            'prefix' => '', 'strict' => true, 'timezone' => '+00:00',
+        ],
         'sqlite' => [
             'driver' => 'sqlite', 'url' => env('DB_URL'),
             'database' => env('DB_DATABASE', database_path('database.sqlite')),

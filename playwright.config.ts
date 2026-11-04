@@ -43,6 +43,8 @@ export default defineConfig({
             SESSION_SECURE_COOKIE: 'false',
             ADMIN_SMS_DRIVER: 'capture',
             ADMIN_BROWSER_TEST: '1',
+            OTSO_ANALYTICS_CONNECTION: 'sqlite',
+            OTSO_ANALYTICS_BET_TIMEZONE: 'UTC',
         },
     },
 });

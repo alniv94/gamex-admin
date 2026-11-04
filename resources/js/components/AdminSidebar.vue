@@ -25,6 +25,7 @@ import {
 import SettingsUserController from '@/actions/App/Http/Controllers/SettingsUserController';
 import { index as investorIndex } from '@/actions/App/Http/Controllers/InvestorController';
 import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
+import { index as promoAnalytics } from '@/actions/App/Http/Controllers/OtsoPromoAnalyticsController';
 import { usePermissions } from '@/composables/usePermissions';
 import { dashboard } from '@/routes';
 import type { AdminPageProps } from '@/types';
@@ -210,6 +211,12 @@ const navigationSections = computed(() =>
             title: 'Otso Panalo Game',
             icon: 'mdi-basketball',
             items: [
+                {
+                    title: 'Promo Analytics',
+                    icon: 'mdi-chart-box-outline',
+                    permission: 'Otso Panalo',
+                    route: promoAnalytics(),
+                },
                 {
                     title: 'Games',
                     icon: 'mdi-basketball',

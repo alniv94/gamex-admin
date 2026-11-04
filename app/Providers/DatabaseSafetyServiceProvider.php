@@ -18,13 +18,14 @@ class DatabaseSafetyServiceProvider extends ServiceProvider
         }
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) use ($source): void {
             $connection = $event->connection;
-            if ($connection->getName() !== 'legacy' && $connection->getDatabaseName() === $source) {
+            $readOnly = in_array($connection->getName(), ['legacy', 'otso_analytics'], true);
+            if (! $readOnly && $connection->getDatabaseName() === $source) {
                 throw new RuntimeException('Only the protected legacy connection may access the source database.');
             }
-            if ($connection->getName() !== 'legacy') {
+            if (! $readOnly) {
                 return;
             }
-            $connection->beforeExecuting(function (string $sql): void {
+            $connection->beforeExecuting(function (string $sql) use ($connection): void {
                 $sql = trim($sql);
                 $snapshot = in_array(strtoupper($sql), [
                     'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ',
@@ -33,7 +34,7 @@ class DatabaseSafetyServiceProvider extends ServiceProvider
                 ], true);
                 if ((! preg_match('/\\A(?:SELECT|SHOW|EXPLAIN)\\b/i', $sql) && ! $snapshot)
                     || preg_match('/\\bINTO\\s+(?:OUTFILE|DUMPFILE)\\b|;\\s*\\S|\\bFOR\\s+UPDATE\\b/i', $sql)) {
-                    throw new RuntimeException('The legacy database connection is read-only.');
+                    throw new RuntimeException('The '.$connection->getName().' database connection is read-only.');
                 }
             });
         });

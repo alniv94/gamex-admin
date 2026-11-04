@@ -8,6 +8,7 @@ use App\Http\Controllers\EndingReportController;
 use App\Http\Controllers\InvestorController;
 use App\Http\Controllers\LuckyFourController;
 use App\Http\Controllers\OtsoPanaloController;
+use App\Http\Controllers\OtsoPromoAnalyticsController;
 use App\Http\Controllers\PagcorReportController;
 use App\Http\Controllers\PlayerCashierController;
 use App\Http\Controllers\PlayerController;
@@ -28,6 +29,7 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/otso-panalo/promo-analytics', [OtsoPromoAnalyticsController::class, 'index'])->name('otso.analytics.index');
     Route::get('/pagcor/reports/{report}', [PagcorReportController::class, 'index'])
         ->whereIn('report', array_keys(PagcorReports::DEFINITIONS))->name('pagcor.reports.index');
     Route::get('/pagcor/reports/{report}/export', [PagcorReportController::class, 'export'])
