@@ -119,6 +119,31 @@ class InvestorImportTest extends TestCase
         $this->assertDatabaseCount('admin_investors', 0);
     }
 
+    public function test_investor_import_retains_outlets_edited_through_settings(): void
+    {
+        $this->sourceFixtures();
+        $this->artisan('legacy:investors', ['--execute' => true])->assertSuccessful();
+        DB::table('admin_outlets')->where('id', 1)->update([
+            'outlet_name' => 'Managed outlet name', 'is_active' => 'Inactive', 'management_version' => 1,
+        ]);
+
+        $this->artisan('legacy:investors', ['--execute' => true])->assertSuccessful();
+        $this->artisan('legacy:investors', ['--verify' => true])->assertSuccessful();
+
+        $this->assertDatabaseHas('admin_outlets', ['id' => 1, 'outlet_name' => 'Managed outlet name', 'is_active' => 'Inactive']);
+    }
+
+    public function test_investor_import_rejects_a_different_outlet_source(): void
+    {
+        $this->sourceFixtures();
+        DB::table('admin_outlet_imports')->insert(['source' => 'different-source', 'report' => '{}', 'verified_at' => now()]);
+
+        $this->artisan('legacy:investors', ['--execute' => true])->assertFailed();
+
+        $this->assertDatabaseCount('admin_outlets', 0);
+        $this->assertDatabaseCount('admin_investors', 0);
+    }
+
     public function test_identity_collision_aborts_instead_of_adopting_a_local_account(): void
     {
         $this->sourceFixtures();

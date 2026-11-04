@@ -29,8 +29,10 @@ class InvestorImport
         if (! $this->players) {
             throw new RuntimeException('Import player identity mappings before investor history.');
         }
-        if (DB::table('admin_investor_imports')->where('source', '!=', config('players.legacy_source'))->exists()) {
-            throw new RuntimeException('Investor history belongs to a different legacy source.');
+        foreach (['admin_investor_imports', 'admin_outlet_imports'] as $table) {
+            if (DB::table($table)->where('source', '!=', config('players.legacy_source'))->exists()) {
+                throw new RuntimeException('Investor or outlet history belongs to a different legacy source.');
+            }
         }
         $source = DB::connection('legacy');
         $mysql = $source->getDriverName() === 'mysql';
@@ -152,6 +154,9 @@ class InvestorImport
      */
     private function matches(string $table, array $expected, array $actual): bool
     {
+        if ($table === 'outlets') {
+            return app(OutletImport::class)->matchesBaseline($expected, $actual);
+        }
         $mutable = match ($table) {
             'investors' => ['outlet_id', 'territory', 'first_name', 'last_name', 'mobile_number', 'password', 'base_commission', 'commission', 'sub_commission', 'category', 'wallet', 'link_type', 'status'],
             'investor_sub_users' => ['first_name', 'last_name', 'mobile_number', 'password', 'status'],
