@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 defineProps<{ title: string; ready: boolean; subtitle?: string }>();
-const page = usePage();
 </script>
 
 <template>
@@ -18,14 +17,6 @@ const page = usePage();
                     <slot name="actions" />
                 </div>
             </div>
-            <v-alert
-                v-if="page.flash.success"
-                type="success"
-                variant="tonal"
-                class="mb-4"
-                role="status"
-                >{{ page.flash.success }}</v-alert
-            >
             <v-alert v-if="!ready" type="info" variant="tonal" class="mb-4"
                 >Agent records are being prepared. Changes will be available once the import is
                 verified.</v-alert

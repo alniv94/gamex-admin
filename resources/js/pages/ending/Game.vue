@@ -49,8 +49,6 @@ const page = usePage<AdminPageProps>();
 const { can } = usePermissions();
 const tab = ref('results');
 const edit = ref(false);
-const message = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
-const dismissedMessage = ref('');
 const resultDialog = ref(false);
 const resultForm = useForm({
     id: null as number | null,
@@ -142,7 +140,6 @@ function saveResult() {
             headers: { 'X-CSRF-TOKEN': page.props.csrf_token },
             onSuccess: () => {
                 resultDialog.value = false;
-                dismissedMessage.value = '';
             },
         },
     );
@@ -157,7 +154,6 @@ function saveCards() {
         headers: { 'X-CSRF-TOKEN': page.props.csrf_token },
         onSuccess: () => {
             cardDialog.value = false;
-            dismissedMessage.value = '';
         },
     });
 }
@@ -249,10 +245,7 @@ function submitAction(target: RouteDefinition<'post' | 'put'>, onSuccess?: () =>
     actionForm.submit(target, {
         preserveScroll: true,
         headers: { 'X-CSRF-TOKEN': page.props.csrf_token },
-        onSuccess: () => {
-            dismissedMessage.value = '';
-            onSuccess?.();
-        },
+        onSuccess: () => onSuccess?.(),
     });
 }
 function confirm() {
@@ -338,15 +331,6 @@ const tableHeaders5: DataTableHeader[] = [
                 class="mb-4"
                 role="alert"
                 >{{ error }}</v-alert
-            >
-            <v-alert
-                v-if="message && message !== dismissedMessage"
-                type="success"
-                variant="tonal"
-                closable
-                class="mb-4"
-                @click:close="dismissedMessage = message"
-                >{{ message }}</v-alert
             >
             <v-card class="mb-5 ending-game-overview">
                 <v-card-text>

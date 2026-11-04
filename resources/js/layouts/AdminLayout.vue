@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import AdminFlashToast from '../components/AdminFlashToast.vue';
 import AdminSidebar from '../components/AdminSidebar.vue';
 import { useAdminApi } from '../composables/useAdminApi';
 import { useAdminSidebar } from '../composables/useAdminSidebar';
@@ -70,6 +71,7 @@ async function logout() {
             }}</v-alert>
             <slot />
         </v-main>
+        <AdminFlashToast />
         <v-overlay
             :model-value="busy"
             persistent

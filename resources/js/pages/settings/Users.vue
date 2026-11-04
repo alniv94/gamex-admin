@@ -35,7 +35,6 @@ const selectedRole = ref<ManagedRole | null>(null);
 const statusDialog = ref(false);
 const statusUser = ref<ManagedUser | null>(null);
 const statusForm = useForm({ status: 'Inactive', version: 0 });
-const success = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
 function filter() {
     router.get(
         SettingsUserController.index.url(),
@@ -133,9 +132,6 @@ function applyFilters() {
                     >Create user</v-btn
                 >
             </div>
-            <v-alert v-if="success" type="success" variant="tonal" class="mb-4" role="status">{{
-                success
-            }}</v-alert>
             <v-card>
                 <v-tabs v-model="tab" color="primary"
                     ><v-tab value="users">Users</v-tab><v-tab value="roles">Roles</v-tab></v-tabs

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { reactive, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 import type { DataTableHeader } from 'vuetify';
 import { index } from '@/actions/App/Http/Controllers/SettingsOutletController';
 import AdminDataTable from '@/components/AdminDataTable.vue';
@@ -10,7 +10,6 @@ import EndingPager from '@/components/ending/EndingPager.vue';
 import OutletForm from '@/components/settings/OutletForm.vue';
 import { useTableFilters } from '@/composables/useTableFilters';
 import { exportTableItems } from '@/composables/useTableExport';
-import type { AdminPageProps } from '@/types';
 import type { PageResult } from '@/types/ending';
 import type { Outlet, OutletLocation, OutletSort } from '@/types/outlets';
 import { playerDate } from '@/types/players';
@@ -20,8 +19,6 @@ const props = defineProps<{
     cities: OutletLocation[];
     filters: { search?: string; status?: string; sort?: OutletSort; direction?: 'asc' | 'desc' };
 }>();
-const page = usePage<AdminPageProps>();
-const success = computed(() => (typeof page.flash.success === 'string' ? page.flash.success : ''));
 const search = ref(props.filters.search ?? '');
 const status = ref(props.filters.status ?? '');
 const sort = ref<OutletSort>(props.filters.sort ?? 'created_at');
@@ -110,9 +107,6 @@ const { activeFilters, removeFilter, resetTableFilters } = useTableFilters(
                     >Create outlet</v-btn
                 >
             </div>
-            <v-alert v-if="success" type="success" variant="tonal" class="mb-4" role="status">{{
-                success
-            }}</v-alert>
             <v-card>
                 <AdminTableToolbar
                     v-model="search"
