@@ -29,6 +29,7 @@ import { index as investorIndex } from '@/actions/App/Http/Controllers/InvestorC
 import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
 import { index as promoAnalytics } from '@/actions/App/Http/Controllers/OtsoPromoAnalyticsController';
 import { usePermissions } from '@/composables/usePermissions';
+import { endingReportIcons, pagcorReportIcons, sidebarIcons } from '@/lib/sidebarIcons';
 import { dashboard } from '@/routes';
 import type { AdminPageProps } from '@/types';
 import { usePage } from '@inertiajs/vue3';
@@ -59,44 +60,44 @@ const playerNavigation = computed(() =>
     [
         {
             title: 'Player List',
-            icon: 'mdi-format-list-bulleted',
+            icon: sidebarIcons.menu,
             permission: 'Player List',
             route: playerList(),
             active: isActive(playerList.url()) || isActive('/player'),
         },
         {
             title: 'Player Withdrawal Accounts',
-            icon: 'mdi-bank-outline',
+            icon: sidebarIcons.menu,
             permission: 'Player List',
             route: withdrawalAccounts(),
         },
         {
             title: 'Registered Player List',
-            icon: 'mdi-account-group-outline',
+            icon: sidebarIcons.players,
             permission: 'Player List',
             route: playerReport('registered'),
         },
         {
             title: 'Newly Registered Players',
-            icon: 'mdi-account-plus-outline',
+            icon: sidebarIcons.addPlayer,
             permission: 'Player List',
             route: playerReport('new'),
         },
         {
             title: 'Active Players Summary',
-            icon: 'mdi-access-point',
+            icon: sidebarIcons.activePlayers,
             permission: 'Player List',
             route: playerReport('active'),
         },
         {
             title: 'Cash In',
-            icon: 'mdi-cash-plus',
+            icon: sidebarIcons.cashIn,
             permission: 'Cash In',
             route: cashierIndex('cashin'),
         },
         {
             title: 'Cash Out',
-            icon: 'mdi-cash-minus',
+            icon: sidebarIcons.cashOut,
             permission: 'Cash Out',
             route: cashierIndex('cashout'),
         },
@@ -107,41 +108,41 @@ const navigationSections = computed(() =>
         {
             value: 'investors',
             title: 'Investors',
-            icon: 'mdi-account-tie',
+            icon: sidebarIcons.investor,
             items: [
                 {
                     title: 'Investor List',
-                    icon: 'mdi-account-tie',
+                    icon: sidebarIcons.investor,
                     permission: 'Investors',
                     route: investorIndex('list'),
                 },
                 {
                     title: 'Payouts Settlement',
-                    icon: 'mdi-chart-bar',
+                    icon: sidebarIcons.settlement,
                     permission: 'Investors',
                     route: investorIndex('payouts'),
                 },
                 {
                     title: 'Commission Settlement',
-                    icon: 'mdi-chart-bar',
+                    icon: sidebarIcons.settlement,
                     permission: 'Investors',
                     route: investorIndex('commissions'),
                 },
                 {
                     title: 'Master Agent List',
-                    icon: 'mdi-format-list-bulleted',
+                    icon: sidebarIcons.menu,
                     permission: 'Investors',
                     route: investorIndex('master-agents'),
                 },
                 {
                     title: 'Special Commission Settlement',
-                    icon: 'mdi-cash-check',
+                    icon: sidebarIcons.commission,
                     permission: 'Special Commission Settlement',
                     route: investorIndex('special-commissions'),
                 },
                 {
                     title: 'Referral Links',
-                    icon: 'mdi-share-variant',
+                    icon: sidebarIcons.referral,
                     permission: 'Investors',
                     route: investorIndex('referral-links'),
                 },
@@ -150,17 +151,17 @@ const navigationSections = computed(() =>
         {
             value: 'agents',
             title: 'Agents',
-            icon: 'mdi-account-group-outline',
+            icon: sidebarIcons.players,
             items: [
                 {
                     title: 'Agent List',
-                    icon: 'mdi-format-list-bulleted',
+                    icon: sidebarIcons.menu,
                     permission: 'Ending Agents',
                     route: agentIndex(),
                 },
                 {
                     title: 'Cash In',
-                    icon: 'mdi-cash-plus',
+                    icon: sidebarIcons.cashIn,
                     permission: 'Ending Agents',
                     route: agentCashins(),
                 },
@@ -169,29 +170,29 @@ const navigationSections = computed(() =>
         {
             value: 'ending',
             title: 'Ending Game',
-            icon: 'mdi-calendar-clock',
+            icon: sidebarIcons.schedule,
             items: [
                 {
                     title: 'Scheduled Games',
-                    icon: 'mdi-calendar-clock',
+                    icon: sidebarIcons.schedule,
                     permission: 'Ending Games',
                     route: EndingGameController.index(),
                 },
                 {
                     title: 'Teams',
-                    icon: 'mdi-account-group',
+                    icon: sidebarIcons.teams,
                     permission: 'Ending Teams',
                     route: EndingCatalogController.teams(),
                 },
                 {
                     title: 'Leagues',
-                    icon: 'mdi-trophy-outline',
+                    icon: sidebarIcons.trophy,
                     permission: 'Ending Leagues',
                     route: EndingCatalogController.leagues(),
                 },
                 {
                     title: 'Config',
-                    icon: 'mdi-cog',
+                    icon: sidebarIcons.settings,
                     permission: 'Ending Config',
                     route: EndingCatalogController.configuration(),
                 },
@@ -200,10 +201,11 @@ const navigationSections = computed(() =>
         {
             value: 'ending-reports',
             title: 'Ending Reports',
-            icon: 'mdi-chart-box-outline',
+            icon: sidebarIcons.analytics,
             items: (page.props.endingReportNavigation ?? [])
                 .map((item) => ({
                     ...item,
+                    icon: endingReportIcons[item.report] ?? sidebarIcons.documents,
                     route: endingReport(item.report),
                 }))
                 .filter((item) => can(item.permission)),
@@ -211,29 +213,29 @@ const navigationSections = computed(() =>
         {
             value: 'otso',
             title: 'Otso Panalo Game',
-            icon: 'mdi-basketball',
+            icon: sidebarIcons.basketball,
             items: [
                 {
                     title: 'Promo Analytics',
-                    icon: 'mdi-chart-box-outline',
+                    icon: sidebarIcons.analytics,
                     permission: 'Otso Panalo',
                     route: promoAnalytics(),
                 },
                 {
                     title: 'Games',
-                    icon: 'mdi-basketball',
+                    icon: sidebarIcons.schedule,
                     permission: 'Otso Panalo',
                     route: otsoGames(),
                 },
                 {
                     title: 'Bets',
-                    icon: 'mdi-ticket-confirmation-outline',
+                    icon: sidebarIcons.bets,
                     permission: 'Otso Panalo',
                     route: otsoBets(),
                 },
                 {
                     title: 'Game Configs',
-                    icon: 'mdi-cog-outline',
+                    icon: sidebarIcons.settings,
                     permission: 'Otso Panalo Game Types',
                     route: otsoConfigs(),
                 },
@@ -242,23 +244,23 @@ const navigationSections = computed(() =>
         {
             value: 'lucky-four',
             title: 'Lucky Four',
-            icon: 'mdi-clover',
+            icon: sidebarIcons.trophy,
             items: [
                 {
                     title: 'Games',
-                    icon: 'mdi-basketball',
+                    icon: sidebarIcons.schedule,
                     permission: 'Lucky Four',
                     route: luckyFourGames(),
                 },
                 {
                     title: 'Bets',
-                    icon: 'mdi-ticket-confirmation-outline',
+                    icon: sidebarIcons.bets,
                     permission: 'Lucky Four',
                     route: luckyFourBets(),
                 },
                 {
                     title: 'Prize Settings',
-                    icon: 'mdi-cog-outline',
+                    icon: sidebarIcons.settings,
                     permission: 'Lucky Four Prizes Settings',
                     route: luckyFourSettings(),
                 },
@@ -267,9 +269,13 @@ const navigationSections = computed(() =>
         {
             value: 'pagcor-reports',
             title: 'PAGCOR Reports',
-            icon: 'mdi-file-chart-outline',
+            icon: sidebarIcons.documents,
             items: (page.props.pagcorReportNavigation ?? [])
-                .map((item) => ({ ...item, route: pagcorReport(item.report) }))
+                .map((item) => ({
+                    ...item,
+                    icon: pagcorReportIcons[item.report] ?? sidebarIcons.documents,
+                    route: pagcorReport(item.report),
+                }))
                 .filter((item) => can(item.permission)),
         },
     ].filter((section) => section.items.length),
@@ -333,7 +339,7 @@ function expandGroup(group: string) {
             <v-defaults-provider :defaults="{ VListItem: { minHeight: 48, prependGap: 16 } }">
                 <AdminNavigationItem
                     title="Dashboard"
-                    icon="mdi-view-dashboard-outline"
+                    :icon="sidebarIcons.analytics"
                     :href="dashboard.url()"
                     :active="isActive(dashboard.url())"
                     :rail="rail"
@@ -353,7 +359,14 @@ function expandGroup(group: string) {
                             @click="rail && expandGroup('players')"
                         >
                             <template #prepend>
-                                <v-icon icon="mdi-account-group" color="primary" size="22" />
+                                <img
+                                    :src="sidebarIcons.players"
+                                    width="24"
+                                    height="24"
+                                    alt=""
+                                    aria-hidden="true"
+                                    class="d-block flex-shrink-0"
+                                />
                             </template>
                             <v-list-item-title v-show="!rail" class="text-body-2">
                                 Players
@@ -398,7 +411,14 @@ function expandGroup(group: string) {
                             @click="rail && expandGroup(section.value)"
                         >
                             <template #prepend>
-                                <v-icon :icon="section.icon" color="primary" size="22" />
+                                <img
+                                    :src="section.icon"
+                                    width="24"
+                                    height="24"
+                                    alt=""
+                                    aria-hidden="true"
+                                    class="d-block flex-shrink-0"
+                                />
                             </template>
                             <v-list-item-title v-show="!rail" class="text-body-2">
                                 {{ section.title }}
@@ -442,7 +462,14 @@ function expandGroup(group: string) {
                             @click="rail && expandGroup('settings')"
                         >
                             <template #prepend>
-                                <v-icon icon="mdi-cog-outline" color="primary" size="22" />
+                                <img
+                                    :src="sidebarIcons.settings"
+                                    width="24"
+                                    height="24"
+                                    alt=""
+                                    aria-hidden="true"
+                                    class="d-block flex-shrink-0"
+                                />
                             </template>
                             <v-list-item-title v-show="!rail" class="text-body-2">
                                 Settings
@@ -458,7 +485,7 @@ function expandGroup(group: string) {
                     <AdminNavigationItem
                         v-if="!rail && canAny(['Users', 'Manage users and roles'])"
                         title="Users"
-                        icon="mdi-account-cog-outline"
+                        :icon="sidebarIcons.users"
                         :href="SettingsUserController.index.url()"
                         :active="isActive(SettingsUserController.index.url())"
                         :rail="rail"
@@ -467,7 +494,7 @@ function expandGroup(group: string) {
                     <AdminNavigationItem
                         v-if="!rail && can('Outlets')"
                         title="Outlets"
-                        icon="mdi-store-outline"
+                        :icon="sidebarIcons.outlet"
                         :href="outletIndex.url()"
                         :active="isActive(outletIndex.url())"
                         :rail="rail"
@@ -476,7 +503,7 @@ function expandGroup(group: string) {
                     <AdminNavigationItem
                         v-if="!rail && can('SMS')"
                         title="SMS"
-                        icon="mdi-message-text-outline"
+                        :icon="sidebarIcons.sms"
                         :href="smsIndex.url()"
                         :active="isActive(smsIndex.url())"
                         :rail="rail"

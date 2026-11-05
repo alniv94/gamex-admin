@@ -25,7 +25,14 @@ const page = usePage();
         @before="() => page.url !== href"
     >
         <template #prepend>
-            <v-icon :icon="icon" color="primary" size="22" />
+            <img
+                :src="icon"
+                width="24"
+                height="24"
+                alt=""
+                aria-hidden="true"
+                class="d-block flex-shrink-0"
+            />
         </template>
         <v-list-item-title v-show="!rail" class="text-body-2 font-weight-regular">
             {{ title }}
