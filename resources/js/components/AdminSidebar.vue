@@ -28,6 +28,7 @@ import { index as smsIndex } from '@/actions/App/Http/Controllers/SettingsSmsCon
 import { index as investorIndex } from '@/actions/App/Http/Controllers/InvestorController';
 import { index as playerReport } from '@/actions/App/Http/Controllers/PlayerReportController';
 import { index as promoAnalytics } from '@/actions/App/Http/Controllers/OtsoPromoAnalyticsController';
+import { index as summaryReport } from '@/actions/App/Http/Controllers/SummaryReportController';
 import { usePermissions } from '@/composables/usePermissions';
 import { endingReportIcons, pagcorReportIcons, sidebarIcons } from '@/lib/sidebarIcons';
 import { dashboard } from '@/routes';
@@ -342,6 +343,15 @@ function expandGroup(group: string) {
                     :icon="sidebarIcons.analytics"
                     :href="dashboard.url()"
                     :active="isActive(dashboard.url())"
+                    :rail="rail"
+                    @click="closeOnMobile"
+                />
+                <AdminNavigationItem
+                    v-if="can('Players Summary')"
+                    title="Summary Report"
+                    :icon="sidebarIcons.menu"
+                    :href="summaryReport.url()"
+                    :active="isActive(summaryReport.url())"
                     :rail="rail"
                     @click="closeOnMobile"
                 />

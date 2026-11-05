@@ -17,6 +17,7 @@ use App\Http\Controllers\SettingsOutletController;
 use App\Http\Controllers\SettingsRoleController;
 use App\Http\Controllers\SettingsSmsController;
 use App\Http\Controllers\SettingsUserController;
+use App\Http\Controllers\SummaryReportController;
 use App\Services\Ending\EndingReports;
 use App\Services\Pagcor\PagcorReports;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ Route::middleware('guest')->group(function (): void {
 });
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/summary_report', [SummaryReportController::class, 'index'])->name('summary-report.index');
     Route::get('/otso-panalo/promo-analytics', [OtsoPromoAnalyticsController::class, 'index'])->name('otso.analytics.index');
     Route::get('/pagcor/reports/{report}', [PagcorReportController::class, 'index'])
         ->whereIn('report', array_keys(PagcorReports::DEFINITIONS))->name('pagcor.reports.index');

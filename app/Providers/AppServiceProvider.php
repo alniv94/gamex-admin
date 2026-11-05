@@ -4,11 +4,14 @@ namespace App\Providers;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Pdo\Sqlite;
 use Spatie\Permission\PermissionRegistrar;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +30,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(PermissionRegistrar $permissions): void
     {
         $this->configureDefaults();
+
+        Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event): void {
+            if ($event->connection->getDriverName() === 'sqlite') {
+                $pdo = $event->connection->getPdo();
+                if ($pdo instanceof Sqlite) {
+                    $pdo->createFunction('summary_report_now', fn (): string => now('UTC')->format('Y-m-d H:i:s'));
+                }
+            }
+        });
 
         // Account eligibility must be checked before Spatie can grant an ability.
         Gate::before(fn (User $user): ?bool => $user->status !== 'Active' || ! $user->profile ? false : null);
